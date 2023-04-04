@@ -1,4 +1,4 @@
-# Analytics Next
+# @segment/analytics-next
 
 Analytics Next (aka Analytics 2.0) is the latest version of Segment’s JavaScript SDK - enabling you to send your data to any tool without having to learn, test, or use a new API every time.
 
@@ -107,7 +107,7 @@ const analytics = AnalyticsBrowser.load(
       integrations: {
         'Segment.io': {
           // https://api.segment.io/v1/t -> https://MY-CUSTOM-API-PROXY.com/t
-          apiHost: 'MY-CUSTOM-API-PROXY.com', // 🔥
+          apiHost: 'MY-CUSTOM-API-PROXY.com/v1', // 🔥
           protocol: 'https'
         }
       }
