@@ -5,6 +5,11 @@ import { Analytics } from '../../../core/analytics'
 import { Plugin } from '../../../core/plugin'
 import { pageEnrichment } from '../../page-enrichment'
 import cookie from 'js-cookie'
+import { UADataValues } from '../../../lib/client-hints/interfaces'
+import {
+  highEntropyTestData,
+  lowEntropyTestData,
+} from '../../../test-helpers/fixtures/client-hints'
 
 jest.mock('unfetch', () => {
   return jest.fn()
@@ -19,10 +24,33 @@ describe('Segment.io', () => {
   beforeEach(async () => {
     jest.resetAllMocks()
     jest.restoreAllMocks()
+    ;(window.navigator as any).userAgentData = {
+      ...lowEntropyTestData,
+      getHighEntropyValues: jest
+        .fn()
+        .mockImplementation((hints: string[]): Promise<UADataValues> => {
+          let result = {}
+          Object.entries(highEntropyTestData).forEach(([k, v]) => {
+            if (hints.includes(k)) {
+              result = {
+                ...result,
+                [k]: v,
+              }
+            }
+          })
+          return Promise.resolve({
+            ...lowEntropyTestData,
+            ...result,
+          })
+        }),
+      toJSON: jest.fn(() => {
+        return lowEntropyTestData
+      }),
+    }
 
     options = { apiKey: 'foo' }
     analytics = new Analytics({ writeKey: options.apiKey })
-    segment = segmentio(analytics, options, {})
+    segment = await segmentio(analytics, options, {})
 
     await analytics.register(segment, pageEnrichment)
 
@@ -54,7 +82,7 @@ describe('Segment.io', () => {
         protocol: 'http',
       }
       const analytics = new Analytics({ writeKey: options.apiKey })
-      const segment = segmentio(analytics, options, {})
+      const segment = await segmentio(analytics, options, {})
       await analytics.register(segment, pageEnrichment)
 
       // @ts-ignore test a valid ajsc page call
@@ -70,7 +98,7 @@ describe('Segment.io', () => {
       const analytics = new Analytics({ writeKey: 'foo' })
 
       await analytics.register(
-        segmentio(analytics, {
+        await segmentio(analytics, {
           apiKey: '',
           deliveryStrategy: {
             config: {
@@ -88,10 +116,10 @@ describe('Segment.io', () => {
     it('should default to no keepalive', async () => {
       const analytics = new Analytics({ writeKey: 'foo' })
 
-      const segment = segmentio(analytics, {
+      const segment = await segmentio(analytics, {
         apiKey: '',
       })
-      await analytics.register(segment)
+      await analytics.register(await segment)
       await analytics.track('foo')
 
       const [_, params] = spyMock.mock.lastCall
@@ -170,6 +198,14 @@ describe('Segment.io', () => {
       assert(body.properties.prop === true)
       assert(body.traits == null)
       assert(body.timestamp)
+    })
+
+    it('should add userAgentData when available', async () => {
+      await analytics.track('event')
+      const [_, params] = spyMock.mock.calls[0]
+      const body = JSON.parse(params.body)
+
+      expect(body.context?.userAgentData).toEqual(lowEntropyTestData)
     })
   })
 
@@ -250,6 +286,40 @@ describe('Segment.io', () => {
       assert(body.userId === 'user-id')
       assert(body.from == null)
       assert(body.to == null)
+    })
+  })
+
+  describe('#screen', () => {
+    it('should enqueue section, name and properties', async () => {
+      await analytics.screen(
+        'section',
+        'name',
+        { property: true },
+        { opt: true }
+      )
+
+      const [url, params] = spyMock.mock.calls[0]
+      expect(url).toMatchInlineSnapshot(`"https://api.segment.io/v1/s"`)
+
+      const body = JSON.parse(params.body)
+
+      assert(body.name === 'name')
+      assert(body.category === 'section')
+      assert(body.properties.property === true)
+      assert(body.context.opt === true)
+      assert(body.timestamp)
+    })
+
+    it('sets properties when name and category are null', async () => {
+      // @ts-ignore test a valid ajsc page call
+      await analytics.screen(null, { foo: 'bar' })
+
+      const [url, params] = spyMock.mock.calls[0]
+      expect(url).toMatchInlineSnapshot(`"https://api.segment.io/v1/s"`)
+
+      const body = JSON.parse(params.body)
+
+      assert(body.properties.foo === 'bar')
     })
   })
 })

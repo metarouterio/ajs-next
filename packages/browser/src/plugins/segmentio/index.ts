@@ -12,6 +12,8 @@ import standard, { StandardDispatcherConfig } from './fetch-dispatcher'
 import { normalize } from './normalize'
 import { scheduleFlush } from './schedule-flush'
 import { SEGMENT_API_HOST } from '../../core/constants'
+import { clientHints } from '../../lib/client-hints'
+import { UADataValues } from '../../lib/client-hints/interfaces'
 
 type DeliveryStrategy =
   | {
@@ -50,11 +52,11 @@ function onAlias(analytics: Analytics, json: JSON): JSON {
   return json
 }
 
-export function segmentio(
+export async function segmentio(
   analytics: Analytics,
   settings?: SegmentioSettings,
   integrations?: LegacySettings['integrations']
-): Plugin {
+): Promise<Plugin> {
   // Attach `pagehide` before buffer is created so that inflight events are added
   // to the buffer before the buffer persists events in its own `pagehide` handler.
   window.addEventListener('pagehide', () => {
@@ -62,11 +64,13 @@ export function segmentio(
     inflightEvents.clear()
   })
 
+  const writeKey = settings?.apiKey ?? ''
+
   const buffer = analytics.options.disableClientPersistence
     ? new PriorityQueue<Context>(analytics.queue.queue.maxAttempts, [])
     : new PersistedPriorityQueue(
         analytics.queue.queue.maxAttempts,
-        `dest-Segment.io`
+        `${writeKey}:dest-Segment.io`
       )
 
   const inflightEvents = new Set<Context>()
@@ -82,6 +86,15 @@ export function segmentio(
       ? batch(apiHost, deliveryStrategy.config)
       : standard(deliveryStrategy?.config as StandardDispatcherConfig)
 
+  let userAgentData: UADataValues | undefined
+  try {
+    userAgentData = await clientHints(
+      analytics.options.highEntropyValuesClientHints
+    )
+  } catch {
+    userAgentData = undefined
+  }
+
   async function send(ctx: Context): Promise<Context> {
     if (isOffline()) {
       buffer.push(ctx)
@@ -93,6 +106,11 @@ export function segmentio(
     inflightEvents.add(ctx)
 
     const path = ctx.event.type.charAt(0)
+
+    if (userAgentData && ctx.event.context) {
+      ctx.event.context.userAgentData = userAgentData
+    }
+
     let json = toFacade(ctx.event).json()
 
     if (ctx.event.type === 'track') {
@@ -131,6 +149,7 @@ export function segmentio(
     page: send,
     alias: send,
     group: send,
+    screen: send,
   }
 
   // Buffer may already have items if they were previously stored in localStorage.

@@ -48,6 +48,8 @@ import { version } from '../../generated/version'
 import { PriorityQueue } from '../../lib/priority-queue'
 import { getGlobal } from '../../lib/get-global'
 import { AnalyticsClassic, AnalyticsCore } from './interfaces'
+import { HighEntropyHint } from '../../lib/client-hints/interfaces'
+import type { LegacySettings } from '../../browser'
 
 const deprecationWarning =
   'This is being deprecated and will be not be available in future releases of Analytics JS'
@@ -56,11 +58,15 @@ const deprecationWarning =
 const global: any = getGlobal()
 const _analytics = global?.analytics
 
-function createDefaultQueue(retryQueue = false, disablePersistance = false) {
+function createDefaultQueue(
+  name: string,
+  retryQueue = false,
+  disablePersistance = false
+) {
   const maxAttempts = retryQueue ? 4 : 1
   const priorityQueue = disablePersistance
     ? new PriorityQueue(maxAttempts, [])
-    : new PersistedPriorityQueue(maxAttempts, 'event-queue')
+    : new PersistedPriorityQueue(maxAttempts, name)
   return new EventQueue(priorityQueue)
 }
 
@@ -94,6 +100,11 @@ export interface InitOptions {
   retryQueue?: boolean
   obfuscate?: boolean
   /**
+   * This callback allows you to update/mutate CDN Settings.
+   * This is called directly after settings are fetched from the CDN.
+   */
+  updateCDNSettings?: (settings: LegacySettings) => LegacySettings
+  /**
    * Disables or sets constraints on processing of query string parameters
    */
   useQueryString?:
@@ -102,6 +113,10 @@ export interface InitOptions {
         aid?: RegExp
         uid?: RegExp
       }
+  /**
+   * Array of high entropy Client Hints to request. These may be rejected by the user agent - only required hints should be requested.
+   */
+  highEntropyValuesClientHints?: HighEntropyHint[]
 }
 
 /* analytics-classic stubs */
@@ -140,7 +155,12 @@ export class Analytics
     this.settings = settings
     this.settings.timeout = this.settings.timeout ?? 300
     this.queue =
-      queue ?? createDefaultQueue(options?.retryQueue, disablePersistance)
+      queue ??
+      createDefaultQueue(
+        `${settings.writeKey}:event-queue`,
+        options?.retryQueue,
+        disablePersistance
+      )
 
     this._universalStorage = new UniversalStorage(
       disablePersistance ? ['memory'] : ['localStorage', 'cookie', 'memory'],

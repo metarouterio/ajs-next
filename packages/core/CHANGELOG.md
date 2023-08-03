@@ -1,5 +1,23 @@
 # @segment/analytics-core
 
+## 1.3.0
+
+### Minor Changes
+
+- [#864](https://github.com/segmentio/analytics-next/pull/864) [`6cba535`](https://github.com/segmentio/analytics-next/commit/6cba5356c5f751e3edb30f7f524d4498600895b0) Thanks [@danieljackins](https://github.com/danieljackins)! - Add Client Hints API support
+
+## 1.2.5
+
+### Patch Changes
+
+- [#846](https://github.com/segmentio/analytics-next/pull/846) [`7dcafa2`](https://github.com/segmentio/analytics-next/commit/7dcafa29cbce86d8c3d3c829c3ba7c22148949fc) Thanks [@silesky](https://github.com/silesky)! - Remove browser-specific isOffline() logic from core
+
+## 1.2.4
+
+### Patch Changes
+
+- [#835](https://github.com/segmentio/analytics-next/pull/835) [`9353e09`](https://github.com/segmentio/analytics-next/commit/9353e0999f942db33066e337e9742ac2e96716b7) Thanks [@silesky](https://github.com/silesky)! - Refactor shared validation logic. Create granular error message if user ID does not match string type.
+
 ## 1.2.3
 
 ### Patch Changes

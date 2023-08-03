@@ -1,6 +1,6 @@
 {
   "name": "@segment/analytics-next",
-  "version": "1.51.3",
+  "version": "1.53.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/segmentio/analytics-next",
@@ -43,15 +43,15 @@
   "size-limit": [
     {
       "path": "dist/umd/index.js",
-      "limit": "28.0 KB"
+      "limit": "28.5 KB"
     }
   ],
   "dependencies": {
     "@lukeed/uuid": "^2.0.0",
-    "@segment/analytics-core": "1.2.3",
+    "@segment/analytics-core": "1.3.0",
     "@segment/analytics.js-video-plugins": "^0.2.1",
     "@segment/facade": "^3.4.9",
-    "@segment/tsub": "1.0.1",
+    "@segment/tsub": "^2.0.0",
     "dset": "^3.1.2",
     "js-cookie": "3.0.1",
     "node-fetch": "^2.6.7",

@@ -39,6 +39,17 @@ export interface LegacyIntegrationConfiguration {
 
   bundlingStatus?: string
 
+  /**
+   * Consent settings for the integration
+   */
+  consentSettings?: {
+    /**
+     * Consent categories for the integration
+     * @example ["Analytics", "Advertising", "CAT001"]
+     */
+    categories: string[]
+  }
+
   // Segment.io specific
   retryQueue?: boolean
 
@@ -64,6 +75,18 @@ export interface LegacySettings {
   legacyVideoPluginsEnabled?: boolean
 
   remotePlugins?: RemotePlugin[]
+
+  /**
+   * Top level consent settings
+   */
+  consentSettings?: {
+    /**
+     * All unique consent categories.
+     * There can be categories in this array that are important for consent that are not included in any integration  (e.g. 2 cloud mode categories).
+     * @example ["Analytics", "Advertising", "CAT001"]
+     */
+    allCategories: string[]
+  }
 }
 
 export interface AnalyticsBrowserSettings extends AnalyticsSettings {
@@ -150,6 +173,7 @@ async function flushFinalBuffer(
 }
 
 async function registerPlugins(
+  writeKey: string,
   legacySettings: LegacySettings,
   analytics: Analytics,
   opts: InitOptions,
@@ -173,6 +197,7 @@ async function registerPlugins(
           /* webpackChunkName: "ajs-destination" */ '../plugins/ajs-destination'
         ).then((mod) => {
           return mod.ajsDestinations(
+            writeKey,
             legacySettings,
             analytics.integrations,
             opts,
@@ -225,7 +250,7 @@ async function registerPlugins(
 
   if (!shouldIgnoreSegmentio) {
     toRegister.push(
-      segmentio(
+      await segmentio(
         analytics,
         mergedSettings['Segment.io'] as SegmentioSettings,
         legacySettings.integrations
@@ -266,9 +291,13 @@ async function loadAnalytics(
   // this is an ugly side-effect, but it's for the benefits of the plugins that get their cdn via getCDN()
   if (settings.cdnURL) setGlobalCDNUrl(settings.cdnURL)
 
-  const legacySettings =
+  let legacySettings =
     settings.cdnSettings ??
     (await loadLegacySettings(settings.writeKey, settings.cdnURL))
+
+  if (options.updateCDNSettings) {
+    legacySettings = options.updateCDNSettings(legacySettings)
+  }
 
   const retryQueue: boolean =
     legacySettings.integrations['Segment.io']?.retryQueue ?? true
@@ -286,6 +315,7 @@ async function loadAnalytics(
   flushPreBuffer(analytics, preInitBuffer)
 
   const ctx = await registerPlugins(
+    settings.writeKey,
     legacySettings,
     analytics,
     opts,
