@@ -1,5 +1,35 @@
 # @segment/analytics-core
 
+## 1.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`7b93e7b`](https://github.com/segmentio/analytics-next/commit/7b93e7b50fa293aebaf6767a44bf7708b231d5cd)]:
+  - @segment/analytics-generic-utils@1.1.1
+
+## 1.4.0
+
+### Minor Changes
+
+- [#993](https://github.com/segmentio/analytics-next/pull/993) [`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0) Thanks [@silesky](https://github.com/silesky)! - Consume Emitter module from `@segment/analytics-generic-utils`
+
+### Patch Changes
+
+- Updated dependencies [[`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0)]:
+  - @segment/analytics-generic-utils@1.1.0
+
+## 1.3.2
+
+### Patch Changes
+
+- [#852](https://github.com/segmentio/analytics-next/pull/852) [`897f4cc`](https://github.com/segmentio/analytics-next/commit/897f4cc69de4cdd38efd0cd70567bfed0c454fec) Thanks [@silesky](https://github.com/silesky)! - Tighten isPlainObject type guard
+
+## 1.3.1
+
+### Patch Changes
+
+- [#939](https://github.com/segmentio/analytics-next/pull/939) [`ee855ba`](https://github.com/segmentio/analytics-next/commit/ee855bad751c393a40dcbde7ae861f27d2b4da26) Thanks [@zikaari](https://github.com/zikaari)! - Update Campaign type to be more relaxed
+
 ## 1.3.0
 
 ### Minor Changes

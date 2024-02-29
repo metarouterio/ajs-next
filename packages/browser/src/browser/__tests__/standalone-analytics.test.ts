@@ -1,13 +1,15 @@
 import jsdom, { JSDOM } from 'jsdom'
-import { InitOptions } from '../../'
+import { InitOptions, getGlobalAnalytics } from '../../'
 import { AnalyticsBrowser, loadLegacySettings } from '../../browser'
 import { snippet } from '../../tester/__fixtures__/segment-snippet'
-import { install, AnalyticsStandalone } from '../standalone-analytics'
+import { install } from '../standalone-analytics'
 import unfetch from 'unfetch'
 import { PersistedPriorityQueue } from '../../lib/priority-queue/persisted'
 import { sleep } from '../../lib/sleep'
 import * as Factory from '../../test-helpers/factories'
 import { EventQueue } from '../../core/queue/event-queue'
+import { AnalyticsStandalone } from '../standalone-interface'
+import { getBufferedPageCtxFixture } from '../../test-helpers/fixtures'
 
 const track = jest.fn()
 const identify = jest.fn()
@@ -27,9 +29,7 @@ jest.mock('../../core/analytics', () => ({
     register,
     emit: jest.fn(),
     on,
-    queue: new EventQueue(
-      new PersistedPriorityQueue(1, 'foo:event-queue') as any
-    ),
+    queue: new EventQueue(new PersistedPriorityQueue(1, 'event-queue') as any),
     options,
   }),
 }))
@@ -67,6 +67,7 @@ describe('standalone bundle', () => {
     `.trim()
 
     const virtualConsole = new jsdom.VirtualConsole()
+
     const jsd = new JSDOM(html, {
       runScripts: 'dangerously',
       resources: 'usable',
@@ -142,7 +143,7 @@ describe('standalone bundle', () => {
       .mockImplementation((): Promise<Response> => fetchSettings)
     const mockCdn = 'http://my-overridden-cdn.com'
 
-    window.analytics._cdn = mockCdn
+    getGlobalAnalytics()!._cdn = mockCdn
     await loadLegacySettings(segmentDotCom)
 
     expect(unfetch).toHaveBeenCalledWith(expect.stringContaining(mockCdn))
@@ -158,12 +159,20 @@ describe('standalone bundle', () => {
 
     await sleep(0)
 
-    expect(track).toHaveBeenCalledWith('fruit basket', {
-      fruits: ['🍌', '🍇'],
-    })
-    expect(identify).toHaveBeenCalledWith('netto', {
-      employer: 'segment',
-    })
+    expect(track).toHaveBeenCalledWith(
+      'fruit basket',
+      {
+        fruits: ['🍌', '🍇'],
+      },
+      getBufferedPageCtxFixture()
+    )
+    expect(identify).toHaveBeenCalledWith(
+      'netto',
+      {
+        employer: 'segment',
+      },
+      getBufferedPageCtxFixture()
+    )
 
     expect(page).toHaveBeenCalled()
   })
@@ -262,20 +271,32 @@ describe('standalone bundle', () => {
 
     // register is called after flushPreBuffer in `loadAnalytics`
     register.mockImplementationOnce(() =>
-      window.analytics.track('race conditions', { foo: 'bar' })
+      getGlobalAnalytics()?.track('race conditions', { foo: 'bar' })
     )
 
     await install()
 
     await sleep(0)
 
-    expect(track).toHaveBeenCalledWith('fruit basket', {
-      fruits: ['🍌', '🍇'],
-    })
-    expect(track).toHaveBeenCalledWith('race conditions', { foo: 'bar' })
-    expect(identify).toHaveBeenCalledWith('netto', {
-      employer: 'segment',
-    })
+    expect(track).toHaveBeenCalledWith(
+      'fruit basket',
+      {
+        fruits: ['🍌', '🍇'],
+      },
+      getBufferedPageCtxFixture()
+    )
+    expect(track).toHaveBeenCalledWith(
+      'race conditions',
+      { foo: 'bar' },
+      getBufferedPageCtxFixture()
+    )
+    expect(identify).toHaveBeenCalledWith(
+      'netto',
+      {
+        employer: 'segment',
+      },
+      getBufferedPageCtxFixture()
+    )
 
     expect(page).toHaveBeenCalled()
   })

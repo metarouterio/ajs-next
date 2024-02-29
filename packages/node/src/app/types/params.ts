@@ -30,6 +30,11 @@ export type AliasParams = {
   context?: ExtraContext
   timestamp?: Timestamp
   integrations?: Integrations
+  /**
+   * Override the default messageId for the purposes of deduping events. Using a uuid library is strongly encouraged.
+   * @link https://segment.com/docs/partners/faqs/#does-segment-de-dupe-messages
+   */
+  messageId?: string
 }
 
 export type GroupParams = {
@@ -43,6 +48,11 @@ export type GroupParams = {
   context?: ExtraContext
   timestamp?: Timestamp
   integrations?: Integrations
+  /**
+   * Override the default messageId for the purposes of deduping events. Using a uuid library is strongly encouraged.
+   * @link https://segment.com/docs/partners/faqs/#does-segment-de-dupe-messages
+   */
+  messageId?: string
 } & IdentityOptions
 
 export type IdentifyParams = {
@@ -55,6 +65,11 @@ export type IdentifyParams = {
   context?: ExtraContext
   timestamp?: Timestamp
   integrations?: Integrations
+  /**
+   * Override the default messageId for the purposes of deduping events. Using a uuid library is strongly encouraged.
+   * @link https://segment.com/docs/partners/faqs/#does-segment-de-dupe-messages
+   */
+  messageId?: string
 } & IdentityOptions
 
 export type PageParams = {
@@ -67,6 +82,11 @@ export type PageParams = {
   timestamp?: Timestamp
   context?: ExtraContext
   integrations?: Integrations
+  /**
+   * Override the default messageId for the purposes of deduping events. Using a uuid library is strongly encouraged.
+   * @link https://segment.com/docs/partners/faqs/#does-segment-de-dupe-messages
+   */
+  messageId?: string
 } & IdentityOptions
 
 export type TrackParams = {
@@ -75,4 +95,27 @@ export type TrackParams = {
   context?: ExtraContext
   timestamp?: Timestamp
   integrations?: Integrations
+  /**
+   * Override the default messageId for the purposes of deduping events. Using a uuid library is strongly encouraged.
+   * @link https://segment.com/docs/partners/faqs/#does-segment-de-dupe-messages
+   */
+  messageId?: string
 } & IdentityOptions
+
+export type FlushParams = {
+  /**
+   * Max time in milliseconds to wait until the resulting promise resolves.
+   */
+  timeout?: number
+  /**
+   * If true, will prevent new events from entering the pipeline. Default: false
+   */
+  close?: boolean
+}
+
+export type CloseAndFlushParams = {
+  /**
+   * Max time in milliseconds to wait until the resulting promise resolves.
+   */
+  timeout?: FlushParams['timeout']
+}

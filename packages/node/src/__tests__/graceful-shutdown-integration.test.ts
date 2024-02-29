@@ -22,17 +22,17 @@ describe('Ability for users to exit without losing events', () => {
   beforeEach(async () => {
     ajs = new Analytics({
       writeKey: 'abc123',
-      maxEventsInBatch: 1,
+      flushAt: 1,
       httpClient: testClient,
     })
   })
   const _helpers = {
     getFetchCalls: () =>
-      makeReqSpy.mock.calls.map(([{ url, method, data, headers }]) => ({
+      makeReqSpy.mock.calls.map(([{ url, method, body, headers }]) => ({
         url,
         method,
         headers,
-        data,
+        body,
       })),
     makeTrackCall: (analytics = ajs, cb?: (...args: any[]) => void) => {
       analytics.track({ userId: 'foo', event: 'Thing Updated' }, cb)
@@ -190,7 +190,7 @@ describe('Ability for users to exit without losing events', () => {
       const analytics = new Analytics({
         writeKey: 'foo',
         flushInterval: 10000,
-        maxEventsInBatch: 15,
+        flushAt: 15,
         httpClient: testClient,
       })
       _helpers.makeTrackCall(analytics)
@@ -206,7 +206,7 @@ describe('Ability for users to exit without losing events', () => {
       expect(elapsedTime).toBeLessThan(100)
       const calls = _helpers.getFetchCalls()
       expect(calls.length).toBe(1)
-      expect(calls[0].data.batch.length).toBe(2)
+      expect(JSON.parse(calls[0].body).batch.length).toBe(2)
     })
 
     test('should wait to flush if close is called and an event has not made it to the segment.io plugin yet', async () => {
@@ -221,7 +221,7 @@ describe('Ability for users to exit without losing events', () => {
       const analytics = new Analytics({
         writeKey: 'foo',
         flushInterval: 10000,
-        maxEventsInBatch: 15,
+        flushAt: 15,
         httpClient: testClient,
       })
       await analytics.register(_testPlugin)
@@ -238,7 +238,141 @@ describe('Ability for users to exit without losing events', () => {
       expect(elapsedTime).toBeLessThan(TRACK_DELAY * 2)
       const calls = _helpers.getFetchCalls()
       expect(calls.length).toBe(1)
-      expect(calls[0].data.batch.length).toBe(2)
+      expect(JSON.parse(calls[0].body).batch.length).toBe(2)
+    })
+  })
+
+  describe('.flush()', () => {
+    beforeEach(() => {
+      ajs = new Analytics({
+        writeKey: 'abc123',
+        httpClient: testClient,
+        maxEventsInBatch: 15,
+      })
+    })
+
+    it('should be able to flush multiple times', async () => {
+      let drainedCalls = 0
+      ajs.on('drained', () => {
+        drainedCalls++
+      })
+      let trackCalls = 0
+      ajs.on('track', () => {
+        trackCalls++
+      })
+      // make track call
+      _helpers.makeTrackCall()
+
+      // flush first time
+      await ajs.flush()
+      expect(_helpers.getFetchCalls().length).toBe(1)
+      expect(trackCalls).toBe(1)
+      expect(drainedCalls).toBe(1)
+
+      // make another 2 track calls
+      _helpers.makeTrackCall()
+      _helpers.makeTrackCall()
+
+      // flush second time
+      await ajs.flush()
+      expect(drainedCalls).toBe(2)
+      expect(_helpers.getFetchCalls().length).toBe(2)
+      expect(trackCalls).toBe(3)
+    })
+
+    test('should handle events normally if new events enter the pipeline _after_ flush is called', async () => {
+      let drainedCalls = 0
+      ajs.on('drained', () => {
+        drainedCalls++
+      })
+      let trackCallCount = 0
+      ajs.on('track', () => {
+        trackCallCount += 1
+      })
+
+      // make regular call
+      _helpers.makeTrackCall()
+      const flushed = ajs.flush()
+
+      // add another event to the queue to simulate late-arriving track call. flush should not wait for this event.
+      await sleep(100)
+      _helpers.makeTrackCall()
+
+      await flushed
+      expect(trackCallCount).toBe(1)
+      expect(_helpers.getFetchCalls().length).toBe(1)
+      expect(drainedCalls).toBe(1)
+
+      // should be one event left in the queue (the late-arriving track call). This will be included in the next flush.
+      // add a second event to the queue.
+      _helpers.makeTrackCall()
+
+      await ajs.flush()
+      expect(drainedCalls).toBe(2)
+      expect(_helpers.getFetchCalls().length).toBe(2)
+      expect(trackCallCount).toBe(3)
+    })
+
+    test('overlapping flush calls should be ignored with a wwarning', async () => {
+      ajs = new Analytics({
+        writeKey: 'abc123',
+        httpClient: testClient,
+        maxEventsInBatch: 2,
+      })
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      let drainedCalls = 0
+      ajs.on('drained', () => {
+        drainedCalls++
+      })
+      let trackCallCount = 0
+      ajs.on('track', () => {
+        trackCallCount += 1
+      })
+
+      _helpers.makeTrackCall()
+      // overlapping flush calls
+      const flushes = Promise.all([ajs.flush(), ajs.flush()])
+      _helpers.makeTrackCall()
+      _helpers.makeTrackCall()
+      await flushes
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Overlapping flush calls detected')
+      )
+      expect(trackCallCount).toBe(3)
+      expect(drainedCalls).toBe(1)
+
+      // just to be ensure the pipeline is operating as usual, make another track call and flush
+      _helpers.makeTrackCall()
+      await ajs.flush()
+      expect(trackCallCount).toBe(4)
+      expect(drainedCalls).toBe(2)
+    })
+
+    test('should call console.warn only once', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      let drainedCalls = 0
+      ajs.on('drained', () => {
+        drainedCalls++
+      })
+
+      _helpers.makeTrackCall()
+
+      // overlapping flush calls
+      await Promise.all([ajs.flush(), ajs.flush()])
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(drainedCalls).toBe(1)
+
+      _helpers.makeTrackCall()
+      // non-overlapping flush calls
+      await ajs.flush()
+      expect(drainedCalls).toBe(2)
+
+      // there are no additional events to flush
+      await ajs.flush()
+      expect(drainedCalls).toBe(2)
+
+      expect(warnSpy).toHaveBeenCalledTimes(1)
     })
   })
 })

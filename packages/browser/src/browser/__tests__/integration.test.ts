@@ -23,6 +23,7 @@ import {
   highEntropyTestData,
   lowEntropyTestData,
 } from '../../test-helpers/fixtures/client-hints'
+import { getGlobalAnalytics, NullAnalytics } from '../..'
 
 let fetchCalls: ReturnType<typeof parseFetchCall>[] = []
 
@@ -74,6 +75,16 @@ const googleAnalytics: Plugin = {
   type: 'destination',
 }
 
+const slowPlugin: Plugin = {
+  ...xt,
+  name: 'Slow Plugin',
+  type: 'destination',
+  track: async (ctx) => {
+    await sleep(3000)
+    return ctx
+  },
+}
+
 const enrichBilling: Plugin = {
   ...xt,
   name: 'Billing Enrichment',
@@ -93,11 +104,11 @@ const amplitudeWriteKey = 'bar'
 
 beforeEach(() => {
   setGlobalCDNUrl(undefined as any)
+  fetchCalls = []
 })
 
 describe('Initialization', () => {
   beforeEach(async () => {
-    fetchCalls = []
     jest.resetAllMocks()
     jest.resetModules()
   })
@@ -200,7 +211,7 @@ describe('Initialization', () => {
           {
             ...xt,
             load: async () => {
-              expect(window.analytics).toBeUndefined()
+              expect(getGlobalAnalytics()).toBeUndefined()
               expect(getCDN()).toContain(overriddenCDNUrl)
             },
           },
@@ -209,6 +220,57 @@ describe('Initialization', () => {
 
       expect(fetchCalls[0].url).toContain(overriddenCDNUrl)
       expect.assertions(3)
+    })
+  })
+
+  describe('globalAnalyticsKey', () => {
+    const overrideKey = 'myKey'
+    const buffer = {
+      foo: 'bar',
+    }
+
+    beforeEach(() => {
+      ;(window as any)[overrideKey] = buffer
+    })
+    afterEach(() => {
+      delete (window as any)[overrideKey]
+    })
+    it('should default to window.analytics', async () => {
+      const defaultObj = { original: 'default' }
+      ;(window as any)['analytics'] = defaultObj
+
+      await AnalyticsBrowser.load({
+        writeKey,
+        plugins: [
+          {
+            ...xt,
+            load: async () => {
+              expect(getGlobalAnalytics()).toBe(defaultObj)
+            },
+          },
+        ],
+      })
+      expect.assertions(1)
+    })
+
+    it('should set the global window key for the analytics buffer with the setting option', async () => {
+      await AnalyticsBrowser.load(
+        {
+          writeKey,
+          plugins: [
+            {
+              ...xt,
+              load: async () => {
+                expect(getGlobalAnalytics()).toBe(buffer)
+              },
+            },
+          ],
+        },
+        {
+          globalAnalyticsKey: overrideKey,
+        }
+      )
+      expect.assertions(1)
     })
   })
 
@@ -248,21 +310,17 @@ describe('Initialization', () => {
       })
     })
     it('calls page if initialpageview is set', async () => {
-      jest.mock('../../core/analytics')
-      const mockPage = jest.fn().mockImplementation(() => Promise.resolve())
-      Analytics.prototype.page = mockPage
-
+      const page = jest.spyOn(Analytics.prototype, 'page')
       await AnalyticsBrowser.load({ writeKey }, { initialPageview: true })
-
-      expect(mockPage).toHaveBeenCalled()
+      await sleep(0) // flushed in new task
+      expect(page).toHaveBeenCalledTimes(1)
     })
 
     it('does not call page if initialpageview is not set', async () => {
-      jest.mock('../../core/analytics')
-      const mockPage = jest.fn()
-      Analytics.prototype.page = mockPage
+      const page = jest.spyOn(Analytics.prototype, 'page')
       await AnalyticsBrowser.load({ writeKey }, { initialPageview: false })
-      expect(mockPage).not.toHaveBeenCalled()
+      await sleep(0) // flush happens async
+      expect(page).not.toHaveBeenCalled()
     })
 
     it('does not use a persisted queue when disableClientPersistence is true', async () => {
@@ -526,6 +584,34 @@ describe('Dispatch', () => {
     expect(segmentSpy).toHaveBeenCalledWith(boo)
   })
 
+  it('dispatching to Segmentio not blocked by other destinations', async () => {
+    const [ajs] = await AnalyticsBrowser.load({
+      writeKey,
+      plugins: [slowPlugin],
+    })
+
+    const segmentio = ajs.queue.plugins.find((p) => p.name === 'Segment.io')
+    const segmentSpy = jest.spyOn(segmentio!, 'track')
+
+    await Promise.race([
+      ajs.track(
+        'Boo!',
+        {
+          total: 25,
+          userId: '👻',
+        },
+        {
+          integrations: {
+            All: true,
+          },
+        }
+      ),
+      sleep(100),
+    ])
+
+    expect(segmentSpy).toHaveBeenCalled()
+  })
+
   it('enriches events before dispatching', async () => {
     const [ajs] = await AnalyticsBrowser.load({
       writeKey,
@@ -537,7 +623,7 @@ describe('Dispatch', () => {
     })
 
     expect(boo.event.properties).toMatchInlineSnapshot(`
-      Object {
+      {
         "billingPlan": "free-99",
         "total": 25,
       }
@@ -558,13 +644,13 @@ describe('Dispatch', () => {
     const metrics = delivered.stats.metrics
 
     expect(metrics.map((m) => m.metric)).toMatchInlineSnapshot(`
-      Array [
+      [
         "message_dispatched",
         "plugin_time",
         "plugin_time",
         "plugin_time",
-        "message_delivered",
         "plugin_time",
+        "message_delivered",
         "delivered",
       ]
     `)
@@ -1074,7 +1160,7 @@ describe('Options', () => {
         iso: '2020-10-10',
       })
 
-      const [integrationEvent] = integrationMock.mock.lastCall
+      const [integrationEvent] = integrationMock.mock.lastCall!
 
       expect(integrationEvent.properties()).toEqual({
         date: expect.any(Date),
@@ -1111,7 +1197,7 @@ describe('Options', () => {
         iso: '2020-10-10',
       })
 
-      const [integrationEvent] = integrationMock.mock.lastCall
+      const [integrationEvent] = integrationMock.mock.lastCall!
 
       expect(integrationEvent.properties()).toEqual({
         date: expect.any(Date),
@@ -1148,13 +1234,65 @@ describe('Options', () => {
         iso: '2020-10-10',
       })
 
-      const [integrationEvent] = integrationMock.mock.lastCall
+      const [integrationEvent] = integrationMock.mock.lastCall!
 
       expect(integrationEvent.properties()).toEqual({
         date: expect.any(Date),
         iso: '2020-10-10',
       })
       expect(integrationEvent.timestamp()).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('disable', () => {
+    /**
+     * Note: other tests in null-analytics.test.ts cover the NullAnalytics class (including persistence)
+     */
+    it('should return a null version of analytics / context', async () => {
+      const [analytics, context] = await AnalyticsBrowser.load(
+        {
+          writeKey,
+        },
+        { disable: true }
+      )
+      expect(context).toBeInstanceOf(Context)
+      expect(analytics).toBeInstanceOf(NullAnalytics)
+      expect(analytics.initialized).toBe(true)
+    })
+
+    it('should not fetch cdn settings or dispatch events', async () => {
+      const [analytics] = await AnalyticsBrowser.load(
+        {
+          writeKey,
+        },
+        { disable: true }
+      )
+      await analytics.track('foo')
+      expect(fetchCalls.length).toBe(0)
+    })
+
+    it('should only accept a boolean value', async () => {
+      const [analytics] = await AnalyticsBrowser.load(
+        {
+          writeKey,
+        },
+        // @ts-ignore
+        { disable: 'true' }
+      )
+      expect(analytics).not.toBeInstanceOf(NullAnalytics)
+    })
+
+    it('should allow access to cdnSettings', async () => {
+      const disableSpy = jest.fn().mockReturnValue(true)
+      const [analytics] = await AnalyticsBrowser.load(
+        {
+          cdnSettings: { integrations: {}, foo: 123 },
+          writeKey,
+        },
+        { disable: disableSpy }
+      )
+      expect(analytics).toBeInstanceOf(NullAnalytics)
+      expect(disableSpy).toBeCalledWith({ integrations: {}, foo: 123 })
     })
   })
 })

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import { getCDN, setGlobalCDNUrl } from '../lib/parse-cdn'
-import { setVersionType } from '../plugins/segmentio/normalize'
+import { setVersionType } from '../lib/version-type'
 
 if (process.env.ASSET_PATH) {
   if (process.env.ASSET_PATH === '/dist/umd/') {
@@ -28,6 +28,7 @@ import {
   loadAjsClassicFallback,
   isAnalyticsCSPError,
 } from '../lib/csp-detection'
+import { setGlobalAnalyticsKey } from '../lib/global-analytics-helper'
 
 let ajsIdentifiedCSP = false
 
@@ -69,6 +70,16 @@ async function attempt<T>(promise: () => Promise<T>) {
   } catch (err) {
     onError(err)
   }
+}
+
+const globalAnalyticsKey = (
+  document.querySelector(
+    'script[data-global-segment-analytics-key]'
+  ) as HTMLScriptElement
+)?.dataset.globalSegmentAnalyticsKey
+
+if (globalAnalyticsKey) {
+  setGlobalAnalyticsKey(globalAnalyticsKey)
 }
 
 if (shouldPolyfill()) {

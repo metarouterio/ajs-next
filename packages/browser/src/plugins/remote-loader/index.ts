@@ -10,6 +10,7 @@ import {
 } from '../middleware'
 import { Context, ContextCancelation } from '../../core/context'
 import { Analytics } from '../../core/analytics'
+import { recordIntegrationMetric } from '../../core/stats/metric-helpers'
 
 export interface RemotePlugin {
   /** The name of the remote plugin */
@@ -79,7 +80,22 @@ export class ActionDestination implements DestinationPlugin {
         transformedContext = await this.transform(ctx)
       }
 
-      await this.action[methodName]!(transformedContext)
+      try {
+        recordIntegrationMetric(ctx, {
+          integrationName: this.action.name,
+          methodName,
+          type: 'action',
+        })
+        await this.action[methodName]!(transformedContext)
+      } catch (error) {
+        recordIntegrationMetric(ctx, {
+          integrationName: this.action.name,
+          methodName,
+          type: 'action',
+          didError: true,
+        })
+        throw error
+      }
 
       return ctx
     }
@@ -101,8 +117,23 @@ export class ActionDestination implements DestinationPlugin {
     return this.action.ready ? this.action.ready() : Promise.resolve()
   }
 
-  load(ctx: Context, analytics: Analytics): Promise<unknown> {
-    return this.action.load(ctx, analytics)
+  async load(ctx: Context, analytics: Analytics): Promise<unknown> {
+    try {
+      recordIntegrationMetric(ctx, {
+        integrationName: this.action.name,
+        methodName: 'load',
+        type: 'action',
+      })
+      return await this.action.load(ctx, analytics)
+    } catch (error) {
+      recordIntegrationMetric(ctx, {
+        integrationName: this.action.name,
+        methodName: 'load',
+        type: 'action',
+        didError: true,
+      })
+      throw error
+    }
   }
 
   unload(ctx: Context, analytics: Analytics): Promise<unknown> | unknown {
@@ -110,9 +141,10 @@ export class ActionDestination implements DestinationPlugin {
   }
 }
 
-type PluginFactory = (
-  settings: JSONValue
-) => Plugin | Plugin[] | Promise<Plugin | Plugin[]>
+export type PluginFactory = {
+  (settings: JSONValue): Plugin | Plugin[] | Promise<Plugin | Plugin[]>
+  pluginName: string
+}
 
 function validate(pluginLike: unknown): pluginLike is Plugin[] {
   if (!Array.isArray(pluginLike)) {
@@ -159,47 +191,61 @@ function isPluginDisabled(
   return false
 }
 
+async function loadPluginFactory(
+  remotePlugin: RemotePlugin,
+  obfuscate?: boolean
+): Promise<void | PluginFactory> {
+  const defaultCdn = new RegExp('https://cdn.segment.(com|build)')
+  const cdn = getCDN()
+
+  if (obfuscate) {
+    const urlSplit = remotePlugin.url.split('/')
+    const name = urlSplit[urlSplit.length - 2]
+    const obfuscatedURL = remotePlugin.url.replace(
+      name,
+      btoa(name).replace(/=/g, '')
+    )
+    try {
+      await loadScript(obfuscatedURL.replace(defaultCdn, cdn))
+    } catch (error) {
+      // Due to syncing concerns it is possible that the obfuscated action destination (or requested version) might not exist.
+      // We should use the unobfuscated version as a fallback.
+      await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
+    }
+  } else {
+    await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
+  }
+
+  // @ts-expect-error
+  if (typeof window[remotePlugin.libraryName] === 'function') {
+    // @ts-expect-error
+    return window[remotePlugin.libraryName] as PluginFactory
+  }
+}
+
 export async function remoteLoader(
   settings: LegacySettings,
   userIntegrations: Integrations,
   mergedIntegrations: Record<string, JSONObject>,
   obfuscate?: boolean,
-  routingMiddleware?: DestinationMiddlewareFunction
+  routingMiddleware?: DestinationMiddlewareFunction,
+  pluginSources?: PluginFactory[]
 ): Promise<Plugin[]> {
   const allPlugins: Plugin[] = []
-  const cdn = getCDN()
 
   const routingRules = settings.middlewareSettings?.routingRules ?? []
 
   const pluginPromises = (settings.remotePlugins ?? []).map(
     async (remotePlugin) => {
       if (isPluginDisabled(userIntegrations, remotePlugin)) return
+
       try {
-        const defaultCdn = new RegExp('https://cdn.segment.(com|build)')
-        if (obfuscate) {
-          const urlSplit = remotePlugin.url.split('/')
-          const name = urlSplit[urlSplit.length - 2]
-          const obfuscatedURL = remotePlugin.url.replace(
-            name,
-            btoa(name).replace(/=/g, '')
-          )
-          try {
-            await loadScript(obfuscatedURL.replace(defaultCdn, cdn))
-          } catch (error) {
-            // Due to syncing concerns it is possible that the obfuscated action destination (or requested version) might not exist.
-            // We should use the unobfuscated version as a fallback.
-            await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
-          }
-        } else {
-          await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
-        }
+        const pluginFactory =
+          pluginSources?.find(
+            ({ pluginName }) => pluginName === remotePlugin.name
+          ) || (await loadPluginFactory(remotePlugin, obfuscate))
 
-        const libraryName = remotePlugin.libraryName
-
-        // @ts-expect-error
-        if (typeof window[libraryName] === 'function') {
-          // @ts-expect-error
-          const pluginFactory = window[libraryName] as PluginFactory
+        if (pluginFactory) {
           const plugin = await pluginFactory({
             ...remotePlugin.settings,
             ...mergedIntegrations[remotePlugin.name],

@@ -1,3 +1,4 @@
+import { OptionalField } from '../utils'
 import type { CreateWrapperSettings } from './settings'
 
 export interface AnalyticsBrowserSettings {
@@ -10,22 +11,32 @@ export interface AnalyticsBrowserSettings {
  * 2nd arg to AnalyticsBrowser.load / analytics
  */
 export interface InitOptions {
-  updateCDNSettings(cdnSettings: CDNSettings): CDNSettings
+  updateCDNSettings?(cdnSettings: CDNSettings): CDNSettings
+  disable?: boolean | ((cdnSettings: CDNSettings) => boolean)
+  initialPageview?: boolean
 }
 
 /**
+ * Underling analytics instance so it does not have a load method.
+ * This type is neccessary because the final 'initialized' Analytics instance in `window.analytics` does not have a load method (ditto, new AnalyticsBrowser().instance)
+ * This is compatible with one of the following interfaces: `Analytics`, `AnalyticsSnippet`, `AnalyticsBrowser`.
+ */
+export type MaybeInitializedAnalytics = {
+  initialized?: boolean
+} & OptionalField<AnyAnalytics, 'load'>
+
+/**
  * This interface is a stub of the actual Segment analytics instance.
- * This can be either:
- * - window.analytics (i.e `AnalyticsSnippet`)
- * - the instance returned by `AnalyticsBrowser.load({...})`
- * - the instance created by `new AnalyticsBrowser(...)`
+ * Either `AnalyticsSnippet` _or_ `AnalyticsBrowser`.
  */
 export interface AnyAnalytics {
   addSourceMiddleware(...args: any[]): any
-  on(event: 'initialize', callback: (settings: CDNSettings) => void): void
+  on(event: 'initialize', callback: (cdnSettings: CDNSettings) => void): void
+  track(event: string, properties?: unknown, ...args: any[]): void
+  page(): void
 
   /**
-   * This interface is meant to be compatible with both the snippet (`window.analytics.load`)
+   * This interface is meant to be compatible with both the snippet (`analytics.load`)
    * and the npm lib (`AnalyticsBrowser.load`)
    */
   load(
@@ -35,19 +46,21 @@ export interface AnyAnalytics {
 }
 
 /**
- * This function returns a "wrapped" version of analytics.
- */
-export interface Wrapper {
-  // Returns void rather than analytics to emphasize that this function replaces the .load function of the underlying instance.
-  (analytics: AnyAnalytics): void
-}
+ * This function modifies an analytics instance to add consent management.
+ * This is an analytics instance (either window.analytics, new AnalyticsBrowser(), or the instance returned by `AnalyticsBrowser.load({...})`
+ **/
+// Why type this as 'object' rather than 'AnyAnalytics'? IMO, the chance of a false positive is much higher than the chance that someone will pass in an object that is not an analytics instance.
+// We have an assertion function that throws an error if the analytics instance is not compatible.
+export type Wrapper<Analytics extends AnyAnalytics> = (
+  analyticsInstance: Analytics
+) => Analytics
 
 /**
- * This function returns a function which returns a "wrapped" version of analytics
+ * Create a function which wraps analytics instances to add consent management.
  */
-export interface CreateWrapper {
-  (options: CreateWrapperSettings): Wrapper
-}
+export type CreateWrapper<Analytics extends AnyAnalytics> = (
+  settings: CreateWrapperSettings
+) => Wrapper<Analytics>
 
 export interface Categories {
   [category: string]: boolean
@@ -57,13 +70,17 @@ export interface IntegrationCategoryMappings {
   [integrationName: string]: string[]
 }
 
+export interface CDNSettingsConsent {
+  // all unique categories keys
+  allCategories: string[]
+  // where user has unmapped enabled destinations
+  hasUnmappedDestinations: boolean
+}
+
 export interface CDNSettings {
   integrations: CDNSettingsIntegrations
   remotePlugins?: CDNSettingsRemotePlugin[]
-  consentSettings?: {
-    // all unique categories keys
-    allCategories: string[]
-  }
+  consentSettings?: CDNSettingsConsent
 }
 
 /**

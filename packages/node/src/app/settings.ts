@@ -1,5 +1,6 @@
 import { ValidationError } from '@segment/analytics-core'
 import { HTTPClient, HTTPFetchFn } from '../lib/http-client'
+import { OAuthSettings } from '../lib/types'
 
 export interface AnalyticsSettings {
   /**
@@ -19,7 +20,12 @@ export interface AnalyticsSettings {
    */
   maxRetries?: number
   /**
-   * The number of messages to enqueue before flushing. Default: 15
+   * The number of events to enqueue before flushing. Default: 15.
+   */
+  flushAt?: number
+  /**
+   * @deprecated
+   * The number of events to enqueue before flushing. This is deprecated in favor of `flushAt`. Default: 15.
    */
   maxEventsInBatch?: number
   /**
@@ -40,6 +46,10 @@ export interface AnalyticsSettings {
    * Default: an HTTP client that uses globalThis.fetch, with node-fetch as a fallback.
    */
   httpClient?: HTTPFetchFn | HTTPClient
+  /**
+   * Set up OAuth2 authentication between the client and Segment's endpoints
+   */
+  oauthSettings?: OAuthSettings
 }
 
 export const validateSettings = (settings: AnalyticsSettings) => {
