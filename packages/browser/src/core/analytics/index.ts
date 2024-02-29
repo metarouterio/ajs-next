@@ -102,6 +102,8 @@ export interface InitOptions {
         aid?: RegExp
         uid?: RegExp
       }
+  writeKey?: string
+  ingestionURL?: string
 }
 
 /* analytics-classic stubs */
