@@ -1,5 +1,14 @@
 # @segment/analytics-next
 
+## 1.64.1
+
+### Patch Changes
+
+- [#1036](https://github.com/segmentio/analytics-next/pull/1036) [`f65c131`](https://github.com/segmentio/analytics-next/commit/f65c131a62f979b6629b086b3eb9cd9b3ffefe31) Thanks [@danieljackins](https://github.com/danieljackins)! - Fix schema-filter bug
+
+- Updated dependencies [[`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994)]:
+  - @segment/analytics-core@1.4.2
+
 ## 1.64.0
 
 ### Minor Changes

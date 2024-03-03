@@ -1,5 +1,18 @@
 # @segment/analytics-node
 
+## 2.1.0
+
+### Minor Changes
+
+- [#1043](https://github.com/segmentio/analytics-next/pull/1043) [`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994) Thanks [@silesky](https://github.com/silesky)! - This ensures backward compatibility with analytics-node by modifying '@segment/analytics-core'. Specifically, the changes prevent the generation of a messageId if it is already set. This adjustment aligns with the behavior outlined in analytics-node's source code [here](https://github.com/segmentio/analytics-node/blob/master/index.js#L195-L201).
+
+  While this is a core release, only the node library is affected, as the browser has its own EventFactory atm.
+
+### Patch Changes
+
+- Updated dependencies [[`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994)]:
+  - @segment/analytics-core@1.4.2
+
 ## 2.0.0
 
 ### Major Changes
