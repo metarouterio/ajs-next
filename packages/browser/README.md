@@ -6,11 +6,9 @@ Analytics Next (aka Analytics 2.0) is the latest version of Segment’s JavaScri
 
 - [🏎️ Quickstart](#-quickstart)
   - [💡 Using with Segment](#-using-with-segment)
-  - [💻 Using as an NPM package](#-using-as-an-npm-package)
+  - [💻 Using as an `npm` package](#-using-as-an-npm-package)
 - [🔌 Plugins](#-plugins)
 - [🐒 Development](#-development)
-- [🧪 Testing](#-testing)
-  - [✅ Unit Testing](#-unit-testing)
 
 ---
 
@@ -24,7 +22,7 @@ The easiest and quickest way to get started with Analytics 2.0 is to [use it thr
 
 2. Start tracking!
 
-## 💻 Using as an NPM package
+## 💻 Using as an `npm` package
 
 1. Install the package
 
@@ -85,38 +83,16 @@ analytics
 ```
 
 ## Custom CDN / API Proxy
+[Self Hosting or Proxying Analytics.js documentation](
+ https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/custom-proxy/#custom-cdn--api-proxy)
 
-Configure `cdnURL` to override `https://cdn.segment.com`.
-```ts
-const analytics = AnalyticsBrowser.load({
-  writeKey,
-  // GET http://cdn.segment.com/v1/projects/<writekey>/settings -> https://MY-CUSTOM-CDN-PROXY.com/v1/project/<writekey>/settings
-  // GET https://cdn.segment.com/next-integrations/actions/...js -> https://MY-CUSTOM-CDN-PROXY.com/next-integrations/actions/...js
-  cdnURL: 'https://MY-CUSTOM-CDN-PROXY.com' // 🔥
- })
-```
+## Examples / Usage in Common Frameworks and SPAs
 
-Configure `integrations['Segment.io'].apiHost` to override `https://api.segment.io/v1`.
-```ts
-const analytics = AnalyticsBrowser.load(
-    {
-      writeKey,
-      cdnURL: 'https://MY-CUSTOM-CDN-PROXY.com'
-    },
-    {
-      integrations: {
-        'Segment.io': {
-          // https://api.segment.io/v1/t -> https://MY-CUSTOM-API-PROXY.com/t
-          apiHost: 'MY-CUSTOM-API-PROXY.com/v1', // 🔥
-          protocol: 'https'
-        }
-      }
-    }
-  )
-```
+### Next.js
+- https://github.com/vercel/next.js/tree/canary/examples/with-segment-analytics
+- https://github.com/vercel/next.js/tree/canary/examples/with-segment-analytics-pages-router
 
-## Usage in Common Frameworks
-### React
+### Vanilla React
 ```tsx
 import { AnalyticsBrowser } from '@segment/analytics-next'
 
@@ -130,12 +106,9 @@ const App = () => (
 )
 ```
 
-More React Examples:
-> Warning ⚠️ Some of these examples may be overly-complex for your use case, we recommend the simple approach outlined above.
-- Our [playground](/examples/with-next-js/) (written in NextJS) -- this can be run with `yarn dev`.
-- Complex [React example repo](https://github.com/segmentio/react-example/) which outlines using the [Segment snippet](https://github.com/segmentio/react-example/tree/main/src/examples/analytics-quick-start) and using the [Segment npm package](https://github.com/segmentio/react-example/tree/main/src/examples/analytics-package).
 
-### `Vue`
+
+### Vue
 
 1. Export analytics instance.
 
@@ -175,9 +148,9 @@ export default defineComponent({
 ## Support for Web Workers (Experimental)
  While this package does not support web workers out of the box, there are options:
 
-1. Run analytics.js in a web worker via [partytown.io](https://partytown.builder.io/). See [our partytown example](../../examples/with-next-js/pages/partytown). **Supports both cloud and device mode destinations, but not all device mode destinations may work.**
+1. Run analytics.js in a web worker via [partytown.io](https://partytown.builder.io/). See [our partytown example](../../playgrounds/next-playground/pages/partytown). **Supports both cloud and device mode destinations, but not all device mode destinations may work.**
 
-2. Try [@segment/analytics-node](../node) with `maxEventsInBatch: 1`, which should work in any runtime where `fetch` is available. **Warning: cloud destinations only!**
+2. Try [@segment/analytics-node](../node) with `flushAt: 1`, which should work in any runtime where `fetch` is available. **Warning: cloud destinations only!**
 
 
 
@@ -254,6 +227,8 @@ and can be of five different types:
 Here is an example of a simple plugin that would convert all track events event names to lowercase before the event gets sent through the rest of the pipeline:
 
 ```ts
+import type { Plugin } from '@segment/analytics-next'
+
 export const lowercase: Plugin = {
   name: 'Lowercase Event Name',
   type: 'before',
@@ -267,6 +242,8 @@ export const lowercase: Plugin = {
     return ctx
   }
 }
+
+analytics.register(lowercase)
 ```
 
 For further examples check out our [existing plugins](/packages/browser/src/plugins).

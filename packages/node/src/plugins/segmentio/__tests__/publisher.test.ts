@@ -1,6 +1,4 @@
-const fetcher = jest.fn()
-jest.mock('../../../lib/fetch', () => ({ fetch: fetcher }))
-import { Emitter } from '@segment/analytics-core'
+import { Emitter } from '@segment/analytics-generic-utils'
 import { range } from 'lodash'
 import { createConfiguredNodePlugin } from '..'
 import { Context } from '../../../app/context'
@@ -10,32 +8,44 @@ import {
   createSuccess,
   createError,
 } from '../../../__tests__/test-helpers/factories'
+import { TestFetchClient } from '../../../__tests__/test-helpers/create-test-analytics'
 import { PublisherProps } from '../publisher'
-import { assertSegmentApiBody } from './test-helpers/segment-http-api'
+import { assertHTTPRequestOptions } from '../../../__tests__/test-helpers/assert-shape/segment-http-api'
 
 let emitter: Emitter
-const createTestNodePlugin = (props: PublisherProps) =>
-  createConfiguredNodePlugin(props, emitter)
+const testClient = new TestFetchClient()
+const makeReqSpy = jest.spyOn(testClient, 'makeRequest')
+const getLastRequest = () => makeReqSpy.mock.lastCall![0]
 
-const validateFetcherInputs = (...contexts: Context[]) => {
-  const [url, request] = fetcher.mock.lastCall
-  return assertSegmentApiBody(url, request, contexts)
+const createTestNodePlugin = (props: Partial<PublisherProps> = {}) =>
+  createConfiguredNodePlugin(
+    {
+      flushAt: 1,
+      httpClient: testClient,
+      writeKey: '',
+      flushInterval: 1000,
+      maxRetries: 3,
+      ...props,
+    },
+    emitter
+  )
+
+const validateMakeReqInputs = (...contexts: Context[]) => {
+  return assertHTTPRequestOptions(getLastRequest(), contexts)
 }
 
 const eventFactory = new NodeEventFactory()
 
 beforeEach(() => {
   emitter = new Emitter()
-  fetcher.mockReturnValue(createSuccess())
+  makeReqSpy.mockReturnValue(createSuccess())
   jest.useFakeTimers()
 })
 
 it('supports multiple events in a batch', async () => {
   const { plugin: segmentPlugin } = createTestNodePlugin({
     maxRetries: 3,
-    maxEventsInBatch: 3,
-    flushInterval: 1000,
-    writeKey: '',
+    flushAt: 3,
   })
 
   // Create 3 events of mixed types to send.
@@ -53,17 +63,15 @@ it('supports multiple events in a batch', async () => {
   }
 
   // Expect a single fetch call for all 3 events.
-  expect(fetcher).toHaveBeenCalledTimes(1)
+  expect(makeReqSpy).toHaveBeenCalledTimes(1)
 
-  validateFetcherInputs(...contexts)
+  validateMakeReqInputs(...contexts)
 })
 
 it('supports waiting a max amount of time before sending', async () => {
   const { plugin: segmentPlugin } = createTestNodePlugin({
     maxRetries: 3,
-    maxEventsInBatch: 3,
-    flushInterval: 1000,
-    writeKey: '',
+    flushAt: 3,
   })
 
   const context = new Context(eventFactory.alias('to', 'from'))
@@ -72,13 +80,13 @@ it('supports waiting a max amount of time before sending', async () => {
 
   jest.advanceTimersByTime(500)
 
-  expect(fetcher).not.toHaveBeenCalled()
+  expect(makeReqSpy).not.toHaveBeenCalled()
 
   jest.advanceTimersByTime(500)
 
   // Expect a single fetch call for all 1 events.
-  expect(fetcher).toHaveBeenCalledTimes(1)
-  validateFetcherInputs(context)
+  expect(makeReqSpy).toHaveBeenCalledTimes(1)
+  validateMakeReqInputs(context)
 
   // Make sure we're returning the context in the resolved promise.
   const updatedContext = await pendingContext
@@ -89,9 +97,7 @@ it('supports waiting a max amount of time before sending', async () => {
 it('sends as soon as batch fills up or max time is reached', async () => {
   const { plugin: segmentPlugin } = createTestNodePlugin({
     maxRetries: 3,
-    maxEventsInBatch: 2,
-    flushInterval: 1000,
-    writeKey: '',
+    flushAt: 2,
   })
 
   const context = new Context(eventFactory.alias('to', 'from'))
@@ -105,14 +111,14 @@ it('sends as soon as batch fills up or max time is reached', async () => {
   const pendingContexts = contexts.map((ctx) => segmentPlugin.alias(ctx))
 
   // Should have seen 1 call due to 1 batch being filled.
-  expect(fetcher).toHaveBeenCalledTimes(1)
-  validateFetcherInputs(context, context)
+  expect(makeReqSpy).toHaveBeenCalledTimes(1)
+  validateMakeReqInputs(context, context)
 
   // 2nd batch is not full, so need to wait for the flushInterval to be reached before sending.
   jest.advanceTimersByTime(500)
-  expect(fetcher).toHaveBeenCalledTimes(1)
+  expect(makeReqSpy).toHaveBeenCalledTimes(1)
   jest.advanceTimersByTime(500)
-  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect(makeReqSpy).toHaveBeenCalledTimes(2)
 
   // Make sure we're returning the context in the resolved promise.
   const updatedContexts = await Promise.all(pendingContexts)
@@ -125,9 +131,8 @@ it('sends as soon as batch fills up or max time is reached', async () => {
 it('sends if batch will exceed max size in bytes when adding event', async () => {
   const { plugin: segmentPlugin } = createTestNodePlugin({
     maxRetries: 3,
-    maxEventsInBatch: 20,
+    flushAt: 20,
     flushInterval: 100,
-    writeKey: '',
   })
 
   const contexts: Context[] = []
@@ -148,9 +153,9 @@ it('sends if batch will exceed max size in bytes when adding event', async () =>
   }
 
   const pendingContexts = contexts.map((ctx) => segmentPlugin.track(ctx))
-  expect(fetcher).toHaveBeenCalledTimes(1)
+  expect(makeReqSpy).toHaveBeenCalledTimes(1)
   jest.advanceTimersByTime(100)
-  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect(makeReqSpy).toHaveBeenCalledTimes(2)
 
   const updatedContexts = await Promise.all(pendingContexts)
   for (let i = 0; i < 16; i++) {
@@ -180,96 +185,76 @@ describe('flushAfterClose', () => {
       )
 
     const { plugin: segmentPlugin, publisher } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 20,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 20,
     })
 
-    publisher.flushAfterClose(3)
+    publisher.flush(3)
 
     void segmentPlugin.track(_createTrackCtx())
     void segmentPlugin.track(_createTrackCtx())
-    expect(fetcher).toHaveBeenCalledTimes(0)
+    expect(makeReqSpy).toHaveBeenCalledTimes(0)
     void segmentPlugin.track(_createTrackCtx())
-    expect(fetcher).toBeCalledTimes(1)
+    expect(makeReqSpy).toBeCalledTimes(1)
   })
 
   it('continues to flush on each event if batch size is 1', async () => {
     const { plugin: segmentPlugin, publisher } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
-    publisher.flushAfterClose(3)
+    publisher.flush(3)
 
     void segmentPlugin.track(_createTrackCtx())
     void segmentPlugin.track(_createTrackCtx())
     void segmentPlugin.track(_createTrackCtx())
-    expect(fetcher).toBeCalledTimes(3)
+    expect(makeReqSpy).toBeCalledTimes(3)
   })
 
   it('sends immediately once there are no pending items, even if pending events exceeds batch size', async () => {
     const { plugin: segmentPlugin, publisher } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 3,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 3,
     })
 
-    publisher.flushAfterClose(5)
+    publisher.flush(5)
     range(3).forEach(() => segmentPlugin.track(_createTrackCtx()))
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(makeReqSpy).toHaveBeenCalledTimes(1)
     range(2).forEach(() => segmentPlugin.track(_createTrackCtx()))
-    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(makeReqSpy).toHaveBeenCalledTimes(2)
   })
 
   it('works if there are previous items in the batch', async () => {
     const { plugin: segmentPlugin, publisher } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 7,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 7,
     })
 
     range(3).forEach(() => segmentPlugin.track(_createTrackCtx())) // should not flush
-    expect(fetcher).toHaveBeenCalledTimes(0)
-    publisher.flushAfterClose(5)
-    expect(fetcher).toHaveBeenCalledTimes(0)
+    publisher.flush(5)
     range(2).forEach(() => segmentPlugin.track(_createTrackCtx()))
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(makeReqSpy).toHaveBeenCalledTimes(1)
   })
 
   it('works if there are previous items in the batch AND pending items > batch size', async () => {
     const { plugin: segmentPlugin, publisher } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 7,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 7,
     })
 
     range(3).forEach(() => segmentPlugin.track(_createTrackCtx())) // should not flush
-    expect(fetcher).toHaveBeenCalledTimes(0)
-    publisher.flushAfterClose(10)
-    expect(fetcher).toHaveBeenCalledTimes(0)
+    expect(makeReqSpy).toHaveBeenCalledTimes(0)
+    publisher.flush(10)
+    expect(makeReqSpy).toHaveBeenCalledTimes(0)
     range(4).forEach(() => segmentPlugin.track(_createTrackCtx())) // batch is full, send.
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(makeReqSpy).toHaveBeenCalledTimes(1)
     range(2).forEach(() => segmentPlugin.track(_createTrackCtx()))
-    expect(fetcher).toBeCalledTimes(1)
+    expect(makeReqSpy).toBeCalledTimes(1)
     void segmentPlugin.track(_createTrackCtx()) // pending items limit has been reached, send.
-    expect(fetcher).toBeCalledTimes(2)
+    expect(makeReqSpy).toBeCalledTimes(2)
   })
 })
 
 describe('error handling', () => {
   it('excludes events that are too large', async () => {
     const { plugin: segmentPlugin } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
     const context = new Context(
@@ -289,54 +274,51 @@ describe('error handling', () => {
     expect(updatedContext).toBe(context)
     expect(updatedContext.failedDelivery()).toBeTruthy()
     expect(updatedContext.failedDelivery()).toMatchInlineSnapshot(`
-      Object {
+      {
         "reason": [Error: Event exceeds maximum event size of 32 KB],
       }
     `)
-    expect(fetcher).not.toHaveBeenCalled()
+    expect(makeReqSpy).not.toHaveBeenCalled()
   })
 
   it('does not retry 400 errors', async () => {
-    fetcher.mockReturnValue(
+    makeReqSpy.mockReturnValue(
       createError({ status: 400, statusText: 'Bad Request' })
     )
 
     const { plugin: segmentPlugin } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
     const context = new Context(eventFactory.alias('to', 'from'))
 
     const updatedContext = await segmentPlugin.alias(context)
 
-    expect(fetcher).toHaveBeenCalledTimes(1)
-    validateFetcherInputs(context)
+    expect(makeReqSpy).toHaveBeenCalledTimes(1)
+    validateMakeReqInputs(context)
 
     expect(updatedContext).toBe(context)
     expect(updatedContext.failedDelivery()).toBeTruthy()
     expect(updatedContext.failedDelivery()).toMatchInlineSnapshot(`
-      Object {
+      {
         "reason": [Error: [400] Bad Request],
       }
     `)
   })
 
-  it('retries non-400 errors', async () => {
+  it.each([
+    { status: 500, statusText: 'Internal Server Error' },
+    { status: 300, statusText: 'Multiple Choices' },
+    { status: 100, statusText: 'Continue' },
+  ])('retries non-400 errors: %p', async (response) => {
     // Jest kept timing out when using fake timers despite advancing time.
     jest.useRealTimers()
 
-    fetcher.mockReturnValue(
-      createError({ status: 500, statusText: 'Internal Server Error' })
-    )
+    makeReqSpy.mockReturnValue(createError(response))
 
     const { plugin: segmentPlugin } = createTestNodePlugin({
       maxRetries: 2,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
     const context = new Context(eventFactory.alias('to', 'from'))
@@ -344,29 +326,26 @@ describe('error handling', () => {
     const pendingContext = segmentPlugin.alias(context)
     const updatedContext = await pendingContext
 
-    expect(fetcher).toHaveBeenCalledTimes(3)
-    validateFetcherInputs(context)
+    expect(makeReqSpy).toHaveBeenCalledTimes(3)
+    validateMakeReqInputs(context)
 
     expect(updatedContext).toBe(context)
     expect(updatedContext.failedDelivery()).toBeTruthy()
-    expect(updatedContext.failedDelivery()).toMatchInlineSnapshot(`
-      Object {
-        "reason": [Error: [500] Internal Server Error],
-      }
-    `)
+    const err = updatedContext.failedDelivery()?.reason as Error
+    expect(err).toBeInstanceOf(Error)
+    expect(err.message).toEqual(
+      expect.stringContaining(response.status.toString())
+    )
   })
-
   it('retries fetch errors', async () => {
     // Jest kept timing out when using fake timers despite advancing time.
     jest.useRealTimers()
 
-    fetcher.mockRejectedValue(new Error('Connection Error'))
+    makeReqSpy.mockRejectedValue(new Error('Connection Error'))
 
     const { plugin: segmentPlugin } = createTestNodePlugin({
       maxRetries: 2,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
     const context = new Context(eventFactory.alias('my', 'from'))
@@ -374,13 +353,13 @@ describe('error handling', () => {
     const pendingContext = segmentPlugin.alias(context)
     const updatedContext = await pendingContext
 
-    expect(fetcher).toHaveBeenCalledTimes(3)
-    validateFetcherInputs(context)
+    expect(makeReqSpy).toHaveBeenCalledTimes(3)
+    validateMakeReqInputs(context)
 
     expect(updatedContext).toBe(context)
     expect(updatedContext.failedDelivery()).toBeTruthy()
     expect(updatedContext.failedDelivery()).toMatchInlineSnapshot(`
-      Object {
+      {
         "reason": [Error: Connection Error],
       }
     `)
@@ -390,12 +369,10 @@ describe('error handling', () => {
     // Jest kept timing out when using fake timers despite advancing time.
     jest.useRealTimers()
 
-    fetcher.mockRejectedValue(new Error('Connection Error'))
+    makeReqSpy.mockRejectedValue(new Error('Connection Error'))
     const { plugin: segmentPlugin } = createTestNodePlugin({
       maxRetries: 0,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
     const fn = jest.fn()
@@ -410,20 +387,17 @@ describe('error handling', () => {
         )
       )
     )
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(makeReqSpy).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('http_request emitter event', () => {
   it('should emit an http_request object', async () => {
     const { plugin: segmentPlugin } = createTestNodePlugin({
-      maxRetries: 3,
-      maxEventsInBatch: 1,
-      flushInterval: 1000,
-      writeKey: '',
+      flushAt: 1,
     })
 
-    fetcher.mockReturnValueOnce(createSuccess())
+    makeReqSpy.mockReturnValueOnce(createSuccess())
     const fn = jest.fn()
     emitter.on('http_request', fn)
     const context = new Context(

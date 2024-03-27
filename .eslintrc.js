@@ -5,11 +5,6 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2020,
   },
-  env: {
-    es6: true,
-    node: true,
-    browser: true,
-  },
   extends: [
     // Turn on on eslint recommended rules https://github.com/eslint/eslint/blob/main/conf/eslint-recommended.js
     'eslint:recommended',
@@ -18,20 +13,13 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ['*.{js,mjs}'],
-      extends: [
-        // Handle prettier rules through eslint https://github.com/prettier/eslint-plugin-prettier/blob/master/eslint-plugin-prettier.js#L65
-        'plugin:prettier/recommended',
-      ],
-    },
-    {
       files: ['*.{ts,tsx}'],
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: [
           './tsconfig.json',
           './packages/*/tsconfig.json',
-          './examples/*/tsconfig.json',
+          './playgrounds/*/tsconfig.json',
         ],
       },
       extends: [
@@ -43,6 +31,8 @@ module.exports = {
         'plugin:@typescript-eslint/recommended',
         // Handle prettier rules through eslint https://github.com/prettier/eslint-plugin-prettier/blob/master/eslint-plugin-prettier.js#L65
         'plugin:prettier/recommended',
+        // add special jest rules https://github.com/jest-community/eslint-plugin-jest#rules
+        'plugin:jest/recommended',
       ],
       rules: {
         '@typescript-eslint/explicit-function-return-type': 'off',
@@ -62,15 +52,53 @@ module.exports = {
         '@typescript-eslint/require-await': 'error',
         '@typescript-eslint/no-empty-function': 'off',
         '@typescript-eslint/ban-types': 'off', // TODO: turn on
+        /** jest */
+        'jest/valid-title': 'off', // allow functions to be used as describe titles
+        'jest/no-conditional-expect': 'off', // best practice, but TODO
+        'jest/no-alias-methods': 'off', // best practice, but TODO
+        'jest/expect-expect': 'off', // sometimes we compose assertion functions
+        'jest/no-disabled-tests': process.env.CI ? 'error' : 'off', // fail CI if tests are disabled, but do not interfere with local development
+        'jest/no-focused-tests': process.env.CI ? 'error' : 'off',
       },
       overrides: [
         {
-          files: ['*.test.*'],
+          files: ['**/src/**'],
+          rules: {
+            '@typescript-eslint/no-restricted-imports': [
+              'error',
+              {
+                paths: [
+                  {
+                    // Prevent accidental imports from 'lodash'
+                    name: 'lodash',
+                    message:
+                      'Lodash should only be used for dev-related things, and not in any public library src code (e.g. @segment/analytics-next)',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          files: ['**/__tests__/**', '**/scripts/**'],
           rules: {
             'require-await': 'off',
             '@typescript-eslint/require-await': 'off',
+            '@typescript-eslint/no-restricted-imports': 'off',
           },
         },
+      ],
+    },
+    {
+      files: ['*.{js,mjs}'],
+      env: {
+        // Config files and possible scripts. Allow anything, we don't really care.
+        browser: true,
+        node: true,
+      },
+      extends: [
+        // Handle prettier rules through eslint https://github.com/prettier/eslint-plugin-prettier/blob/master/eslint-plugin-prettier.js#L65
+        'plugin:prettier/recommended',
       ],
     },
   ],

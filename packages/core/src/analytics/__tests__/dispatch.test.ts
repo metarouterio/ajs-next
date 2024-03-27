@@ -8,17 +8,6 @@ type JestMockedFn<Fn> = Fn extends (...args: infer Args) => infer ReturnT
   ? jest.Mock<ReturnT, Args>
   : never
 
-const isOnline = jest.fn().mockReturnValue(true)
-const isOffline = jest.fn().mockReturnValue(false)
-
-jest.mock('../../connection', () => ({
-  isOnline,
-  isOffline,
-}))
-
-const fetcher: JestMockedFn<typeof import('node-fetch')['default']> = jest.fn()
-jest.mock('node-fetch', () => fetcher)
-
 const invokeCallback: JestMockedFn<
   typeof import('../../callback')['invokeCallback']
 > = jest.fn()
@@ -27,7 +16,7 @@ jest.mock('../../callback', () => ({
 }))
 
 import { CoreEventQueue } from '../../queue/event-queue'
-import { Emitter } from '../../emitter'
+import { Emitter } from '@segment/analytics-generic-utils'
 import { dispatch, getDelay } from '../dispatch'
 import { CoreContext } from '../../context'
 import { TestCtx, TestEventQueue } from '../../../test-helpers'

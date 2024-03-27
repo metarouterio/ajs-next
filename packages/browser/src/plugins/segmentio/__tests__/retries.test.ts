@@ -3,7 +3,7 @@ import { Analytics } from '../../../core/analytics'
 // @ts-ignore isOffline mocked dependency is accused as unused
 import { isOffline } from '../../../core/connection'
 import { Plugin } from '../../../core/plugin'
-import { pageEnrichment } from '../../page-enrichment'
+import { envEnrichment } from '../../env-enrichment'
 import { scheduleFlush } from '../schedule-flush'
 import * as PPQ from '../../../lib/priority-queue/persisted'
 import * as PQ from '../../../lib/priority-queue'
@@ -46,7 +46,10 @@ describe('Segment.io retries', () => {
             value: jest.fn().mockImplementation(() => queue),
           })
         } else {
-          queue = new PPQ.PersistedPriorityQueue(3, `test-Segment.io`)
+          queue = new PPQ.PersistedPriorityQueue(
+            3,
+            `${options.apiKey}:test-Segment.io`
+          )
           queue['__type'] = 'persisted'
           Object.defineProperty(PPQ, 'PersistedPriorityQueue', {
             writable: true,
@@ -54,9 +57,9 @@ describe('Segment.io retries', () => {
           })
         }
 
-        segment = segmentio(analytics, options, {})
+        segment = await segmentio(analytics, options, {})
 
-        await analytics.register(segment, pageEnrichment)
+        await analytics.register(segment, envEnrichment)
       })
 
       test(`add events to the queue`, async () => {

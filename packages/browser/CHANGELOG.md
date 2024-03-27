@@ -1,5 +1,221 @@
 # @segment/analytics-next
 
+## 1.66.0
+
+### Minor Changes
+
+- [#1037](https://github.com/segmentio/analytics-next/pull/1037) [`e435279`](https://github.com/segmentio/analytics-next/commit/e4352792ed5e58a95009a28d83abb8cfea308a82) Thanks [@danieljackins](https://github.com/danieljackins)! - Allow custom metrics endpoint on load
+
+## 1.65.0
+
+### Minor Changes
+
+- [#945](https://github.com/segmentio/analytics-next/pull/945) [`d212633`](https://github.com/segmentio/analytics-next/commit/d21263369d5980f4f57b13795524dbc345a02e5c) Thanks [@zikaari](https://github.com/zikaari)! - Load destinations lazily and start sending events as each becomes available instead of waiting for all to load first
+
+### Patch Changes
+
+- [#1036](https://github.com/segmentio/analytics-next/pull/1036) [`f65c131`](https://github.com/segmentio/analytics-next/commit/f65c131a62f979b6629b086b3eb9cd9b3ffefe31) Thanks [@danieljackins](https://github.com/danieljackins)! - Fix schema-filter bug
+
+- Updated dependencies [[`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994), [`d212633`](https://github.com/segmentio/analytics-next/commit/d21263369d5980f4f57b13795524dbc345a02e5c)]:
+  - @segment/analytics-core@1.5.0
+  - @segment/analytics-generic-utils@1.2.0
+
+## 1.64.0
+
+### Minor Changes
+
+- [#1032](https://github.com/segmentio/analytics-next/pull/1032) [`5c1511f`](https://github.com/segmentio/analytics-next/commit/5c1511fe1e1d1df94967623b29ec12ffe770aacf) Thanks [@zikaari](https://github.com/zikaari)! - Support loading analytics into a custom global variable when using snippet version 5.2.1 or later
+
+## 1.63.0
+
+### Minor Changes
+
+- [#1008](https://github.com/segmentio/analytics-next/pull/1008) [`e57960e`](https://github.com/segmentio/analytics-next/commit/e57960e84f5ce5b214dde09928bee6e6bdba3a69) Thanks [@danieljackins](https://github.com/danieljackins)! - Change segmentio to destination type
+
+* [#1023](https://github.com/segmentio/analytics-next/pull/1023) [`b5b929e`](https://github.com/segmentio/analytics-next/commit/b5b929ea432198ae6aecb2b03ea2194972bcc029) Thanks [@silesky](https://github.com/silesky)! - Deprecate AnalyticsNode class (in favor of the standalone @segment/analytics-node)
+
+## 1.62.1
+
+### Patch Changes
+
+- [#1009](https://github.com/segmentio/analytics-next/pull/1009) [`f476038`](https://github.com/segmentio/analytics-next/commit/f47603881b787cc81fa1da4496bdbde9eb325a0f) Thanks [@silesky](https://github.com/silesky)! - If initialPageview is true, capture page context as early as possible
+
+- Updated dependencies [[`7b93e7b`](https://github.com/segmentio/analytics-next/commit/7b93e7b50fa293aebaf6767a44bf7708b231d5cd)]:
+  - @segment/analytics-generic-utils@1.1.1
+  - @segment/analytics-core@1.4.1
+
+## 1.62.0
+
+### Minor Changes
+
+- [#992](https://github.com/segmentio/analytics-next/pull/992) [`a72f473`](https://github.com/segmentio/analytics-next/commit/a72f4736a743e6a6487fd7b5c764639402f9e7ba) Thanks [@silesky](https://github.com/silesky)! - Add 'disable' boolean option to allow for disabling Segment in a testing environment.
+
+### Patch Changes
+
+- [#1001](https://github.com/segmentio/analytics-next/pull/1001) [`57be1ac`](https://github.com/segmentio/analytics-next/commit/57be1acd556a9779edbc5fd4d3f820fb50b65697) Thanks [@silesky](https://github.com/silesky)! - add hasUnmappedDestinations property to types
+
+- Updated dependencies [[`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0), [`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0)]:
+  - @segment/analytics-core@1.4.0
+  - @segment/analytics-generic-utils@1.1.0
+
+## 1.61.0
+
+### Minor Changes
+
+- [#985](https://github.com/segmentio/analytics-next/pull/985) [`083f9a1`](https://github.com/segmentio/analytics-next/commit/083f9a18e2cde4132cd31a61d76f26d07c35cad9) Thanks [@zikaari](https://github.com/zikaari)! - Update integration metrics capturing strategy
+
+## 1.60.0
+
+### Minor Changes
+
+- [#989](https://github.com/segmentio/analytics-next/pull/989) [`1faabf1`](https://github.com/segmentio/analytics-next/commit/1faabf1f51de63423f8995adf837137ab2d9d800) Thanks [@silesky](https://github.com/silesky)! - Change default retries to 10 to match docs + ajs classic
+
+## 1.59.0
+
+### Minor Changes
+
+- [#971](https://github.com/segmentio/analytics-next/pull/971) [`2f1ae75`](https://github.com/segmentio/analytics-next/commit/2f1ae75896123e0aeaa1608fde15312adddd5614) Thanks [@zikaari](https://github.com/zikaari)! - Capture action plugin metrics
+
+### Patch Changes
+
+- [#950](https://github.com/segmentio/analytics-next/pull/950) [`c0dadc7`](https://github.com/segmentio/analytics-next/commit/c0dadc759dccd88c6d95d14fcf7732fad2b051a1) Thanks [@oscb](https://github.com/oscb)! - Fixes calls to .identify() with null as id
+
+## 1.58.0
+
+### Minor Changes
+
+- [#852](https://github.com/segmentio/analytics-next/pull/852) [`897f4cc`](https://github.com/segmentio/analytics-next/commit/897f4cc69de4cdd38efd0cd70567bfed0c454fec) Thanks [@silesky](https://github.com/silesky)! - - Capture page context information faster, so context.campaign and context.page are more resilient to quick navigation changes.
+  - Parse UTM params into context.campaign if users pass an object to a page call.
+
+### Patch Changes
+
+- Updated dependencies [[`897f4cc`](https://github.com/segmentio/analytics-next/commit/897f4cc69de4cdd38efd0cd70567bfed0c454fec)]:
+  - @segment/analytics-core@1.3.2
+
+## 1.57.0
+
+### Minor Changes
+
+- [#956](https://github.com/segmentio/analytics-next/pull/956) [`f5cdb82`](https://github.com/segmentio/analytics-next/commit/f5cdb824050c22a9aaa86a450b8f1f4a7f4fb144) Thanks [@danieljackins](https://github.com/danieljackins)! - Set timezone and allow userAgentData to be overridden
+
+## 1.56.0
+
+### Minor Changes
+
+- [#928](https://github.com/segmentio/analytics-next/pull/928) [`7f4232c`](https://github.com/segmentio/analytics-next/commit/7f4232cbdb60a4475c565e5d262b25182e47baf4) Thanks [@oscb](https://github.com/oscb)! - Adds `globalAnalyticsKey` option for setting custom global window buffers
+
+### Patch Changes
+
+- [#949](https://github.com/segmentio/analytics-next/pull/949) [`fcf42f6`](https://github.com/segmentio/analytics-next/commit/fcf42f68b4226b55417bbaeb6305d33129ede96d) Thanks [@silesky](https://github.com/silesky)! - Fix regression where we no longer export UniversalStorage (used in destinations)
+
+## 1.55.0
+
+### Minor Changes
+
+- [#939](https://github.com/segmentio/analytics-next/pull/939) [`ee855ba`](https://github.com/segmentio/analytics-next/commit/ee855bad751c393a40dcbde7ae861f27d2b4da26) Thanks [@zikaari](https://github.com/zikaari)! - Move context augmentation to Page Enrichment plugin
+
+* [#931](https://github.com/segmentio/analytics-next/pull/931) [`9123c0c`](https://github.com/segmentio/analytics-next/commit/9123c0c485d293ee8ba283ba7b6de6a46734449a) Thanks [@silesky](https://github.com/silesky)! - Add ability to use browser destination straight from NPM
+
+### Patch Changes
+
+- Updated dependencies [[`ee855ba`](https://github.com/segmentio/analytics-next/commit/ee855bad751c393a40dcbde7ae861f27d2b4da26)]:
+  - @segment/analytics-core@1.3.1
+
+## 1.54.0
+
+### Minor Changes
+
+- [#908](https://github.com/segmentio/analytics-next/pull/908) [`1b95946`](https://github.com/segmentio/analytics-next/commit/1b95946339d32a0395ab6bf56e37ecbd6eb832ae) Thanks [@oscb](https://github.com/oscb)! - Adds storage option in analytics client to specify priority of storage (e.g use cookies over localstorage)
+
+## 1.53.4
+
+### Patch Changes
+
+- [#932](https://github.com/segmentio/analytics-next/pull/932) [`b1584fc`](https://github.com/segmentio/analytics-next/commit/b1584fc1dc531b312dc6020fadc1c14bd153a557) Thanks [@oscb](https://github.com/oscb)! - `sentAt` is not set at batch upload time once per the whole batch. Individual event `sentAt` property is stripped when doing batch uploading.
+
+## 1.53.3
+
+### Patch Changes
+
+- [#915](https://github.com/segmentio/analytics-next/pull/915) [`7072377`](https://github.com/segmentio/analytics-next/commit/7072377c0adae54b844a441fa545763e0ff654ba) Thanks [@danieljackins](https://github.com/danieljackins)! - Fix batching after page navigation
+
+## 1.53.2
+
+### Patch Changes
+
+- [#888](https://github.com/segmentio/analytics-next/pull/888) [`f3183f2`](https://github.com/segmentio/analytics-next/commit/f3183f2163d93f98ce2f8dd7830d2bca3b47f537) Thanks [@danieljackins](https://github.com/danieljackins)! - Fix query string parsing bug that was causing events containing the 'search' property with a non string value to be dropped
+
+* [#891](https://github.com/segmentio/analytics-next/pull/891) [`e0c7792`](https://github.com/segmentio/analytics-next/commit/e0c7792924e6f7ba0a36c200c5468141de3b9320) Thanks [@zikaari](https://github.com/zikaari)! - Fix cookie write error
+
+## 1.53.1
+
+### Patch Changes
+
+- [#900](https://github.com/segmentio/analytics-next/pull/900) [`9c8b609`](https://github.com/segmentio/analytics-next/commit/9c8b609f500d2338fdbf2572639241ffdfd27f8f) Thanks [@silesky](https://github.com/silesky)! - Add consent info to typescript types
+
+* [#896](https://github.com/segmentio/analytics-next/pull/896) [`48ce3ec`](https://github.com/segmentio/analytics-next/commit/48ce3ecbdea9361dde90481d7c50207613602d52) Thanks [@oscb](https://github.com/oscb)! - Added support for `screen` events for Segment destination
+
+## 1.53.0
+
+### Minor Changes
+
+- [#870](https://github.com/segmentio/analytics-next/pull/870) [`f23f3be`](https://github.com/segmentio/analytics-next/commit/f23f3bec9a774d9e6df8e243ab8e2711bacedd37) Thanks [@silesky](https://github.com/silesky)! - Add updateCDNSettings option
+
+* [#864](https://github.com/segmentio/analytics-next/pull/864) [`6cba535`](https://github.com/segmentio/analytics-next/commit/6cba5356c5f751e3edb30f7f524d4498600895b0) Thanks [@danieljackins](https://github.com/danieljackins)! - Add Client Hints API support
+
+### Patch Changes
+
+- Updated dependencies [[`6cba535`](https://github.com/segmentio/analytics-next/commit/6cba5356c5f751e3edb30f7f524d4498600895b0)]:
+  - @segment/analytics-core@1.3.0
+
+## 1.52.0
+
+### Minor Changes
+
+- [#867](https://github.com/segmentio/analytics-next/pull/867) [`2b3e5e4`](https://github.com/segmentio/analytics-next/commit/2b3e5e470b39ba6e23b90a8b2e61c6ed22b0fd6c) Thanks [@zikaari](https://github.com/zikaari)! - Device mode destination filters will now filter properties within arrays, just like they do in cloud mode
+
+### Patch Changes
+
+- [#861](https://github.com/segmentio/analytics-next/pull/861) [`99402e9`](https://github.com/segmentio/analytics-next/commit/99402e93902b6e5d02b8abe6944cc2f87255ca41) Thanks [@chrisradek](https://github.com/chrisradek)! - Fixes issue related to how retried events are stored in localStorage to prevent analytics.js from reading events for a different writeKey when that writeKey is used on the same domain as the current analytics.js.
+
+## 1.51.7
+
+### Patch Changes
+
+- Updated dependencies [[`7dcafa2`](https://github.com/segmentio/analytics-next/commit/7dcafa29cbce86d8c3d3c829c3ba7c22148949fc)]:
+  - @segment/analytics-core@1.2.5
+
+## 1.51.6
+
+### Patch Changes
+
+- [#842](https://github.com/segmentio/analytics-next/pull/842) [`2b71c10`](https://github.com/segmentio/analytics-next/commit/2b71c102519c12b056b596950f17e5c95fe5e41b) Thanks [@silesky](https://github.com/silesky)! - Fix 'Promise is undefined' issue with ie11 polyfill
+
+## 1.51.5
+
+### Patch Changes
+
+- [#838](https://github.com/segmentio/analytics-next/pull/838) [`55a48a0`](https://github.com/segmentio/analytics-next/commit/55a48a0d1e3589fc6b4896e94b79c857cabf1006) Thanks [@silesky](https://github.com/silesky)! - Refactor page enrichment to only call page defaults once, and simplify logic
+
+* [#839](https://github.com/segmentio/analytics-next/pull/839) [`fdc004b`](https://github.com/segmentio/analytics-next/commit/fdc004bebaa48206c710aab703b164b41e8fa984) Thanks [@silesky](https://github.com/silesky)! - Fixes a utm-parameter parsing bug where overridden page.search properties would not be reflected in the context.campaign object
+
+  ```ts
+  analytics.page(undefined, undefined, {search: "?utm_source=123&utm_content=content" )
+  analytics.track("foo", {url: "....", search: "?utm_source=123&utm_content=content" )
+
+  // should result in a context.campaign of:
+  { source: 123, content: 'content'}
+  ```
+
+## 1.51.4
+
+### Patch Changes
+
+- [#835](https://github.com/segmentio/analytics-next/pull/835) [`9353e09`](https://github.com/segmentio/analytics-next/commit/9353e0999f942db33066e337e9742ac2e96716b7) Thanks [@silesky](https://github.com/silesky)! - Refactor shared validation logic. Create granular error message if user ID does not match string type.
+
+- Updated dependencies [[`9353e09`](https://github.com/segmentio/analytics-next/commit/9353e0999f942db33066e337e9742ac2e96716b7)]:
+  - @segment/analytics-core@1.2.4
+
 ## 1.51.3
 
 ### Patch Changes

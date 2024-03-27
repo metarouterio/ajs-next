@@ -62,11 +62,13 @@ export function segmentio(
     inflightEvents.clear()
   })
 
+  const writeKey = settings?.apiKey ?? ''
+
   const buffer = analytics.options.disableClientPersistence
     ? new PriorityQueue<Context>(analytics.queue.queue.maxAttempts, [])
     : new PersistedPriorityQueue(
         analytics.queue.queue.maxAttempts,
-        `dest-Segment.io`
+        `${writeKey}:dest-Segment.io`
       )
 
   const inflightEvents = new Set<Context>()
@@ -93,6 +95,7 @@ export function segmentio(
     inflightEvents.add(ctx)
 
     const path = ctx.event.type.charAt(0)
+
     let json = toFacade(ctx.event).json()
 
     if (ctx.event.type === 'track') {
@@ -122,7 +125,7 @@ export function segmentio(
 
   const segmentio: Plugin = {
     name: 'Segment.io',
-    type: 'after',
+    type: 'destination',
     version: '0.1.0',
     isLoaded: (): boolean => true,
     load: (): Promise<void> => Promise.resolve(),
@@ -131,6 +134,7 @@ export function segmentio(
     page: send,
     alias: send,
     group: send,
+    screen: send,
   }
 
   // Buffer may already have items if they were previously stored in localStorage.

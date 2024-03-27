@@ -1,5 +1,68 @@
 # @segment/analytics-core
 
+## 1.5.0
+
+### Minor Changes
+
+- [#945](https://github.com/segmentio/analytics-next/pull/945) [`d212633`](https://github.com/segmentio/analytics-next/commit/d21263369d5980f4f57b13795524dbc345a02e5c) Thanks [@zikaari](https://github.com/zikaari)! - Load destinations lazily and start sending events as each becomes available instead of waiting for all to load first
+
+### Patch Changes
+
+- [#1043](https://github.com/segmentio/analytics-next/pull/1043) [`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994) Thanks [@silesky](https://github.com/silesky)! - This ensures backward compatibility with analytics-node by modifying '@segment/analytics-core'. Specifically, the changes prevent the generation of a messageId if it is already set. This adjustment aligns with the behavior outlined in analytics-node's source code [here](https://github.com/segmentio/analytics-node/blob/master/index.js#L195-L201).
+
+  While this is a core release, only the node library is affected, as the browser has its own EventFactory atm.
+
+- Updated dependencies [[`d212633`](https://github.com/segmentio/analytics-next/commit/d21263369d5980f4f57b13795524dbc345a02e5c)]:
+  - @segment/analytics-generic-utils@1.2.0
+
+## 1.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`7b93e7b`](https://github.com/segmentio/analytics-next/commit/7b93e7b50fa293aebaf6767a44bf7708b231d5cd)]:
+  - @segment/analytics-generic-utils@1.1.1
+
+## 1.4.0
+
+### Minor Changes
+
+- [#993](https://github.com/segmentio/analytics-next/pull/993) [`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0) Thanks [@silesky](https://github.com/silesky)! - Consume Emitter module from `@segment/analytics-generic-utils`
+
+### Patch Changes
+
+- Updated dependencies [[`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0)]:
+  - @segment/analytics-generic-utils@1.1.0
+
+## 1.3.2
+
+### Patch Changes
+
+- [#852](https://github.com/segmentio/analytics-next/pull/852) [`897f4cc`](https://github.com/segmentio/analytics-next/commit/897f4cc69de4cdd38efd0cd70567bfed0c454fec) Thanks [@silesky](https://github.com/silesky)! - Tighten isPlainObject type guard
+
+## 1.3.1
+
+### Patch Changes
+
+- [#939](https://github.com/segmentio/analytics-next/pull/939) [`ee855ba`](https://github.com/segmentio/analytics-next/commit/ee855bad751c393a40dcbde7ae861f27d2b4da26) Thanks [@zikaari](https://github.com/zikaari)! - Update Campaign type to be more relaxed
+
+## 1.3.0
+
+### Minor Changes
+
+- [#864](https://github.com/segmentio/analytics-next/pull/864) [`6cba535`](https://github.com/segmentio/analytics-next/commit/6cba5356c5f751e3edb30f7f524d4498600895b0) Thanks [@danieljackins](https://github.com/danieljackins)! - Add Client Hints API support
+
+## 1.2.5
+
+### Patch Changes
+
+- [#846](https://github.com/segmentio/analytics-next/pull/846) [`7dcafa2`](https://github.com/segmentio/analytics-next/commit/7dcafa29cbce86d8c3d3c829c3ba7c22148949fc) Thanks [@silesky](https://github.com/silesky)! - Remove browser-specific isOffline() logic from core
+
+## 1.2.4
+
+### Patch Changes
+
+- [#835](https://github.com/segmentio/analytics-next/pull/835) [`9353e09`](https://github.com/segmentio/analytics-next/commit/9353e0999f942db33066e337e9742ac2e96716b7) Thanks [@silesky](https://github.com/silesky)! - Refactor shared validation logic. Create granular error message if user ID does not match string type.
+
 ## 1.2.3
 
 ### Patch Changes

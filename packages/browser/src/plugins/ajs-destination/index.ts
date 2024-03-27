@@ -29,6 +29,8 @@ import {
   isDisabledIntegration as shouldSkipIntegration,
   isInstallableIntegration,
 } from './utils'
+import { recordIntegrationMetric } from '../../core/stats/metric-helpers'
+import { createDeferred } from '@segment/analytics-generic-utils'
 
 export type ClassType<T> = new (...args: unknown[]) => T
 
@@ -71,10 +73,10 @@ export class LegacyDestination implements DestinationPlugin {
   type: Plugin['type'] = 'destination'
   middleware: DestinationMiddlewareFunction[] = []
 
-  private _ready = false
-  private _initialized = false
+  private _ready: boolean | undefined
+  private _initialized: boolean | undefined
   private onReady: Promise<unknown> | undefined
-  private onInitialize: Promise<unknown> | undefined
+  private initializePromise = createDeferred<boolean>()
   private disableAutoISOConversion: boolean
 
   integrationSource?: ClassicIntegrationSource
@@ -86,6 +88,7 @@ export class LegacyDestination implements DestinationPlugin {
   constructor(
     name: string,
     version: string,
+    writeKey: string,
     settings: JSONObject = {},
     options: InitOptions,
     integrationSource?: ClassicIntegrationSource
@@ -102,20 +105,27 @@ export class LegacyDestination implements DestinationPlugin {
       delete this.settings['type']
     }
 
+    this.initializePromise.promise.then(
+      (isInitialized) => (this._initialized = isInitialized),
+      () => {}
+    )
+
     this.options = options
     this.buffer = options.disableClientPersistence
       ? new PriorityQueue(4, [])
-      : new PersistedPriorityQueue(4, `dest-${name}`)
+      : new PersistedPriorityQueue(4, `${writeKey}:dest-${name}`)
 
     this.scheduleFlush()
   }
 
   isLoaded(): boolean {
-    return this._ready
+    return !!this._ready
   }
 
   ready(): Promise<unknown> {
-    return this.onReady ?? Promise.resolve()
+    return this.initializePromise.promise.then(
+      () => this.onReady ?? Promise.resolve()
+    )
   }
 
   async load(ctx: Context, analyticsInstance: Analytics): Promise<void> {
@@ -147,28 +157,25 @@ export class LegacyDestination implements DestinationPlugin {
       this.integration!.once('ready', onReadyFn)
     })
 
-    this.onInitialize = new Promise((resolve) => {
-      const onInit = (): void => {
-        this._initialized = true
-        resolve(true)
-      }
-
-      this.integration!.on('initialize', onInit)
+    this.integration!.on('initialize', () => {
+      this.initializePromise.resolve(true)
     })
 
     try {
-      ctx.stats.increment('analytics_js.integration.invoke', 1, [
-        `method:initialize`,
-        `integration_name:${this.name}`,
-      ])
-
+      recordIntegrationMetric(ctx, {
+        integrationName: this.name,
+        methodName: 'initialize',
+        type: 'classic',
+      })
       this.integration.initialize()
     } catch (error) {
-      ctx.stats.increment('analytics_js.integration.invoke.error', 1, [
-        `method:initialize`,
-        `integration_name:${this.name}`,
-      ])
-
+      recordIntegrationMetric(ctx, {
+        integrationName: this.name,
+        methodName: 'initialize',
+        type: 'classic',
+        didError: true,
+      })
+      this.initializePromise.resolve(false)
       throw error
     }
   }
@@ -253,20 +260,23 @@ export class LegacyDestination implements DestinationPlugin {
       traverse: !this.disableAutoISOConversion,
     })
 
-    ctx.stats.increment('analytics_js.integration.invoke', 1, [
-      `method:${eventType}`,
-      `integration_name:${this.name}`,
-    ])
+    recordIntegrationMetric(ctx, {
+      integrationName: this.name,
+      methodName: eventType,
+      type: 'classic',
+    })
 
     try {
       if (this.integration) {
-        await this.integration.invoke.call(this.integration, eventType, event)
+        await this.integration!.invoke.call(this.integration, eventType, event)
       }
     } catch (err) {
-      ctx.stats.increment('analytics_js.integration.invoke.error', 1, [
-        `method:${eventType}`,
-        `integration_name:${this.name}`,
-      ])
+      recordIntegrationMetric(ctx, {
+        integrationName: this.name,
+        methodName: eventType,
+        type: 'classic',
+        didError: true,
+      })
       throw err
     }
 
@@ -282,9 +292,8 @@ export class LegacyDestination implements DestinationPlugin {
       this.integration.initialize()
     }
 
-    return this.onInitialize!.then(() => {
-      return this.send(ctx, Page as ClassType<Page>, 'page')
-    })
+    await this.initializePromise.promise
+    return this.send(ctx, Page as ClassType<Page>, 'page')
   }
 
   async identify(ctx: Context): Promise<Context> {
@@ -318,6 +327,7 @@ export class LegacyDestination implements DestinationPlugin {
 }
 
 export function ajsDestinations(
+  writeKey: string,
   settings: LegacySettings,
   globalIntegrations: Integrations = {},
   options: InitOptions = {},
@@ -372,6 +382,7 @@ export function ajsDestinations(
       const destination = new LegacyDestination(
         name,
         version,
+        writeKey,
         integrationOptions[name],
         options,
         adhocIntegrationSources?.[name]

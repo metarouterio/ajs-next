@@ -1,13 +1,13 @@
 /**
  * use non-native event emitter for the benefit of non-node runtimes like CF workers.
  */
-import { Emitter } from '@segment/analytics-core'
+import { Emitter } from '@segment/analytics-generic-utils'
 import { detectRuntime } from './env'
 
 /**
  * adapted from: https://www.npmjs.com/package/node-abort-controller
  */
-class AbortSignal {
+export class AbortSignal {
   onabort: globalThis.AbortSignal['onabort'] = null
   aborted = false
   eventEmitter = new Emitter()
@@ -41,7 +41,7 @@ class AbortSignal {
  * This polyfill is only neccessary to support versions of node < 14.17.
  * Can be removed once node 14 support is dropped.
  */
-class AbortController {
+export class AbortController {
   signal = new AbortSignal()
   abort() {
     if (this.signal.aborted) return

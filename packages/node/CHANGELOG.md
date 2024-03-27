@@ -1,84 +1,98 @@
 # @segment/analytics-node
 
+## 2.1.0
+
+### Minor Changes
+
+- [#1043](https://github.com/segmentio/analytics-next/pull/1043) [`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994) Thanks [@silesky](https://github.com/silesky)! - This ensures backward compatibility with analytics-node by modifying '@segment/analytics-core'. Specifically, the changes prevent the generation of a messageId if it is already set. This adjustment aligns with the behavior outlined in analytics-node's source code [here](https://github.com/segmentio/analytics-node/blob/master/index.js#L195-L201).
+
+  While this is a core release, only the node library is affected, as the browser has its own EventFactory atm.
+
+### Patch Changes
+
+- Updated dependencies [[`95fd2fd`](https://github.com/segmentio/analytics-next/commit/95fd2fd801da26505ddcead96ffaa83aa4364994), [`d212633`](https://github.com/segmentio/analytics-next/commit/d21263369d5980f4f57b13795524dbc345a02e5c)]:
+  - @segment/analytics-core@1.5.0
+  - @segment/analytics-generic-utils@1.2.0
+
+## 2.0.0
+
+### Major Changes
+
+- [#935](https://github.com/segmentio/analytics-next/pull/935) [`833ade8`](https://github.com/segmentio/analytics-next/commit/833ade8571319a029f8e23511967ccb02d3496d4) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Removing support for Node.js 14 and 16 as they are EOL
+
+* [#935](https://github.com/segmentio/analytics-next/pull/935) [`833ade8`](https://github.com/segmentio/analytics-next/commit/833ade8571319a029f8e23511967ccb02d3496d4) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Support for Segment OAuth2
+
+  OAuth2 must be enabled from the Segment dashboard. You will need a PEM format
+  private/public key pair. Once you've uploaded your public key, you will need
+  the OAuth Client Id, the Key Id, and your private key. You can set these in
+  the new OAuthSettings type and provide it in your Analytics configuration.
+
+  Note: This introduces a breaking change only if you have implemented a custom
+  HTTPClient. HTTPClientRequest `data: Record<string, any>` has changed to
+  `body: string`. Processing data into a string now occurs before calls to
+  `makeRequest`
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1010](https://github.com/segmentio/analytics-next/pull/1010) [`5f37f4f`](https://github.com/segmentio/analytics-next/commit/5f37f4f6ea15b2457e6edf11cc92ddbf0dd11736) Thanks [@silesky](https://github.com/silesky)! - Add analytics.flush({ timeout: ..., close: ... }) method
+
+* [#1008](https://github.com/segmentio/analytics-next/pull/1008) [`e57960e`](https://github.com/segmentio/analytics-next/commit/e57960e84f5ce5b214dde09928bee6e6bdba3a69) Thanks [@danieljackins](https://github.com/danieljackins)! - Change segmentio to destination type
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1015](https://github.com/segmentio/analytics-next/pull/1015) [`8fbe1a0`](https://github.com/segmentio/analytics-next/commit/8fbe1a0d4cecff850c28b7da57f903c6df285231) Thanks [@silesky](https://github.com/silesky)! - Deprecate `maxEventsInBatch` in favor of our commonly used: `flushAt`. The purpose is to establish consistency between our SDKs, regardless of language.
+
+### Patch Changes
+
+- Updated dependencies [[`7b93e7b`](https://github.com/segmentio/analytics-next/commit/7b93e7b50fa293aebaf6767a44bf7708b231d5cd)]:
+  - @segment/analytics-generic-utils@1.1.1
+  - @segment/analytics-core@1.4.1
+
+## 1.1.4
+
+### Patch Changes
+
+- Updated dependencies [[`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0), [`d9b47c4`](https://github.com/segmentio/analytics-next/commit/d9b47c43e5e08efce14fe4150536ff60b8df91e0)]:
+  - @segment/analytics-core@1.4.0
+  - @segment/analytics-generic-utils@1.1.0
+
+## 1.1.3
+
+### Patch Changes
+
+- [#974](https://github.com/segmentio/analytics-next/pull/974) [`c879377`](https://github.com/segmentio/analytics-next/commit/c87937720941ad830c5fdd76b0c049435a6ddec6) Thanks [@silesky](https://github.com/silesky)! - Refactor to get createDeferred from @segment/analytics-generic-utils lib
+
+- Updated dependencies [[`c879377`](https://github.com/segmentio/analytics-next/commit/c87937720941ad830c5fdd76b0c049435a6ddec6)]:
+  - @segment/analytics-generic-utils@1.0.0
+
+## 1.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`897f4cc`](https://github.com/segmentio/analytics-next/commit/897f4cc69de4cdd38efd0cd70567bfed0c454fec)]:
+  - @segment/analytics-core@1.3.2
+
+## 1.1.1
+
+### Patch Changes
+
+- [#946](https://github.com/segmentio/analytics-next/pull/946) [`edfb8b5`](https://github.com/segmentio/analytics-next/commit/edfb8b5c4463c2ccd336fdfc7c35d4cd711f5410) Thanks [@danieljackins](https://github.com/danieljackins)! - Include sentAt field in payload
+
+- Updated dependencies [[`ee855ba`](https://github.com/segmentio/analytics-next/commit/ee855bad751c393a40dcbde7ae861f27d2b4da26)]:
+  - @segment/analytics-core@1.3.1
+
+## 1.1.0
+
+### Minor Changes
+
+- [#880](https://github.com/segmentio/analytics-next/pull/880) [`5f50363`](https://github.com/segmentio/analytics-next/commit/5f5036332a3b21d5eb5324c2ed332190b42b2318) Thanks [@silesky](https://github.com/silesky)! - Add `httpClient` setting. This allow users to override default HTTP client with a custom one.
+
 ## 1.0.0
 
 ### Patch Changes
 
-- Updated dependencies [[`afb027a`](https://github.com/segmentio/analytics-next/commit/afb027a5b6287fa520283172392b0c39a628a6ae)]:
-  - @segment/analytics-core@1.2.3
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`69154c3`](https://github.com/segmentio/analytics-next/commit/69154c31f0739c3d1e31c3fd4d0f075fac721289)]:
-  - @segment/analytics-core@1.2.2
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`43897d6`](https://github.com/segmentio/analytics-next/commit/43897d6ffc5f6c7be6a9dec569997348b8c93e51)]:
-  - @segment/analytics-core@1.2.1
-
-## 0.1.0
-
-### Minor Changes
-
-- [#738](https://github.com/segmentio/analytics-next/pull/738) [`fed489c`](https://github.com/segmentio/analytics-next/commit/fed489cbf2e5b4c0f8423453e24831ec5dcdd7ce) Thanks [@silesky](https://github.com/silesky)! - Make trait fields nullable. Type traits for group() differently than identify() call.
-
-### Patch Changes
-
-- Updated dependencies [[`fed489c`](https://github.com/segmentio/analytics-next/commit/fed489cbf2e5b4c0f8423453e24831ec5dcdd7ce), [`61688e2`](https://github.com/segmentio/analytics-next/commit/61688e251ad2f60dae4cfd65cf59401c29ec66bd)]:
-  - @segment/analytics-core@1.2.0
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`80e0d0a`](https://github.com/segmentio/analytics-next/commit/80e0d0a7d074422654cbebe0c3edb90e1d42ad62)]:
-  - @segment/analytics-core@1.1.6
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`90b915a`](https://github.com/segmentio/analytics-next/commit/90b915ac3447d76673e98661c54bf5a0ced2a555), [`108c77e`](https://github.com/segmentio/analytics-next/commit/108c77e81a4e9d2a64eb56e78f707ae6c2ea6ed2)]:
-  - @segment/analytics-core@1.1.5
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`ecb4b8d`](https://github.com/segmentio/analytics-next/commit/ecb4b8db0194e06a3ee3c8cae57d4f327d15dc02)]:
-  - @segment/analytics-core@1.1.4
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`0b9f4d7`](https://github.com/segmentio/analytics-next/commit/0b9f4d7e82662f7d5fda3590e93b10b3fd2e9833)]:
-  - @segment/analytics-core@1.1.3
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`98d1b12`](https://github.com/segmentio/analytics-next/commit/98d1b127082f5fc7904980a561220c64c26edff3)]:
-  - @segment/analytics-core@1.1.2
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [[`409cae4`](https://github.com/segmentio/analytics-next/commit/409cae4b9ac404277aa44bab7428186129b42a35)]:
-  - @segment/analytics-core@1.1.1
-
-## 0.0.1
-
-### Patch Changes
-
-- [#593](https://github.com/segmentio/analytics-next/pull/593) [`7b5d3df`](https://github.com/segmentio/analytics-next/commit/7b5d3df8d7d8e479d1dda4557297baedb3cdcf6f) Thanks [@silesky](https://github.com/silesky)! - Revise NodeJS public API. Fix core so Node SDK waits for plugins to be registered before dispatching any events.
-
-- Updated dependencies [[`4644afc`](https://github.com/segmentio/analytics-next/commit/4644afc5be2dac90465e16a485ef5c34ff694da3), [`598fc31`](https://github.com/segmentio/analytics-next/commit/598fc318a457ac6e5b04d04406f8d836d83763a4), [`ce90543`](https://github.com/segmentio/analytics-next/commit/ce905439355c1cbd306535600bf356710be147de), [`7b5d3df`](https://github.com/segmentio/analytics-next/commit/7b5d3df8d7d8e479d1dda4557297baedb3cdcf6f)]:
-  - @segment/analytics-core@1.1.0
+- [#855](https://github.com/segmentio/analytics-next/pull/855) [`ee409a7`](https://github.com/segmentio/analytics-next/commit/ee409a7f36d82af359b3dc32d5ccc6a436cf8b6d) Thanks [@silesky](https://github.com/silesky)! - GA Release

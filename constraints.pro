@@ -24,13 +24,16 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange2, Depende
   DependencyType2 \= 'peerDependencies',
   % A list of exception to same version rule
   \+ member(DependencyIdent, [
-    % Allow examples to use different versions of react and
+    % Allow playgrounds to use different versions of react and
     'react', 'react-dom',
     '@types/react',
     % Allow the usage of workspace^ -- there is a better way to do this =)
     '@segment/analytics-next',
     '@segment/analytics-node',
     '@segment/analytics-core',
+    '@segment/analytics-consent-wrapper-onetrust',
+    '@segment/analytics-consent-tools',
+    '@internal/test-helpers',
     '@internal/config',
     '@types/node'
   ]).

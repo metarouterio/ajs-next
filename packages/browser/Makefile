@@ -18,7 +18,7 @@ build-browser: build # build dependencies
 .PHONY: build-browser
 
 build: ## Builds libraries in prod mode, and all dependencies
-	yarn run -T browser+deps build
+	yarn run -T browser . build
 .PHONY: build
 
 clean: ## Clean the build directory
@@ -81,5 +81,5 @@ analyze:
 .PHONY: analyze
 
 dev: ## Starts a dev server that is ready for development
-	yarn workspace @example/with-next-js run dev
+	yarn workspace @playground/next-playground run dev
 .PHONY: dev

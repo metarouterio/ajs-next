@@ -33,6 +33,12 @@ export interface CoreOptions {
   anonymousId?: string
   userId?: string
   traits?: Traits
+  /**
+   * Override the messageId. Under normal circumstances, this is not recommended -- but neccessary for deduping events.
+   *
+   * **Currently, This option only works in `@segment/analytics-node`.**
+   */
+  messageId?: string
   // ugh, this is ugly, but we allow literally any property to be passed to options (which get spread onto the event)
   [key: string]: any
 }
@@ -119,6 +125,29 @@ export interface CoreExtraContext {
   userAgent?: string
 
   /**
+   * User agent data returned by the Client Hints API
+   */
+  userAgentData?: {
+    brands?: {
+      brand: string
+      version: string
+    }[]
+    mobile?: boolean
+    platform?: string
+    architecture?: string
+    bitness?: string
+    model?: string
+    platformVersion?: string
+    /** @deprecated in favour of fullVersionList */
+    uaFullVersion?: string
+    fullVersionList?: {
+      brand: string
+      version: string
+    }[]
+    wow64?: boolean
+  }
+
+  /**
    * Information about the current library.
    *
    * **Automatically filled out by the library.**
@@ -146,13 +175,7 @@ export interface CoreExtraContext {
   /**
    * Dictionary of information about the campaign that resulted in the API call, containing name, source, medium, term, content, and any other custom UTM parameter.
    */
-  campaign?: {
-    name: string
-    term: string
-    source: string
-    medium: string
-    content: string
-  }
+  campaign?: Campaign
 
   /**
    * Dictionary of information about the way the user was referred to the website or app.
@@ -454,3 +477,10 @@ export type UserTraits = BaseUserTraits & {
  * Traits are pieces of information you know about a user or group.
  */
 export type Traits = UserTraits | GroupTraits
+
+export type Campaign = {
+  name: string
+  source: string
+  medium: string
+  [key: string]: string
+}

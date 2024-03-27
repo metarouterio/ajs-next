@@ -1,0 +1,20 @@
+{
+  "name": "@playground/standalone-playground",
+  "private": true,
+  "installConfig": {
+    "hoistingLimits": "workspaces"
+  },
+  "scripts": {
+    ".": "yarn run -T turbo run --filter=@playground/standalone-playground...",
+    "start": "yarn http-server . -o /pages",
+    "dev": "yarn concurrently 'yarn . build && yarn start' 'sleep 10 && yarn . watch'",
+    "concurrently": "yarn run -T concurrently"
+  },
+  "dependencies": {
+    "@segment/analytics-consent-wrapper-onetrust": "workspace:^",
+    "@segment/analytics-next": "workspace:^"
+  },
+  "devDependencies": {
+    "http-server": "14.1.1"
+  }
+}

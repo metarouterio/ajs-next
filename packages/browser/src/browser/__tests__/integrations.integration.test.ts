@@ -19,6 +19,17 @@ const mockFetchCdnSettings = (cdnSettings: any = {}) => {
     .mockImplementation(createMockFetchImplementation(cdnSettings))
 }
 
+jest.spyOn(console, 'warn').mockImplementation((...errMsgs) => {
+  if (errMsgs[0].includes('deprecate')) {
+    // get rid of deprecation wawrning spam
+    return
+  }
+  console.warn(
+    'Unexpected console.warn spam in your jest test - please stub out. ' +
+      JSON.stringify(errMsgs)
+  )
+})
+
 describe('Integrations', () => {
   beforeEach(async () => {
     mockFetchCdnSettings()
@@ -59,6 +70,7 @@ describe('Integrations', () => {
       const amplitude = new LegacyDestination(
         'amplitude',
         'latest',
+        writeKey,
         {
           apiKey: amplitudeWriteKey,
         },
@@ -129,13 +141,20 @@ describe('Integrations', () => {
       const amplitude = new LegacyDestination(
         'Amplitude',
         'latest',
+        writeKey,
         {
           apiKey: amplitudeWriteKey,
         },
         {}
       )
 
-      const ga = new LegacyDestination('Google-Analytics', 'latest', {}, {})
+      const ga = new LegacyDestination(
+        'Google-Analytics',
+        'latest',
+        writeKey,
+        {},
+        {}
+      )
 
       const [analytics] = await AnalyticsBrowser.load({
         writeKey,
@@ -145,25 +164,38 @@ describe('Integrations', () => {
       await analytics.ready()
 
       expect(analytics.Integrations).toMatchInlineSnapshot(`
-      Object {
-        "Amplitude": [Function],
-        "Google-Analytics": [Function],
-      }
-    `)
+        {
+          "Amplitude": [Function],
+          "Google-Analytics": [Function],
+        }
+      `)
     })
 
     it('catches destinations with dots in their names', async () => {
       const amplitude = new LegacyDestination(
         'Amplitude',
         'latest',
+        writeKey,
         {
           apiKey: amplitudeWriteKey,
         },
         {}
       )
 
-      const ga = new LegacyDestination('Google-Analytics', 'latest', {}, {})
-      const customerIO = new LegacyDestination('Customer.io', 'latest', {}, {})
+      const ga = new LegacyDestination(
+        'Google-Analytics',
+        'latest',
+        writeKey,
+        {},
+        {}
+      )
+      const customerIO = new LegacyDestination(
+        'Customer.io',
+        'latest',
+        writeKey,
+        {},
+        {}
+      )
 
       const [analytics] = await AnalyticsBrowser.load({
         writeKey,
@@ -173,12 +205,12 @@ describe('Integrations', () => {
       await analytics.ready()
 
       expect(analytics.Integrations).toMatchInlineSnapshot(`
-      Object {
-        "Amplitude": [Function],
-        "Customer.io": [Function],
-        "Google-Analytics": [Function],
-      }
-    `)
+        {
+          "Amplitude": [Function],
+          "Customer.io": [Function],
+          "Google-Analytics": [Function],
+        }
+      `)
     })
 
     it('uses directly provided classic integrations without fetching them from cdn', async () => {

@@ -13,9 +13,12 @@ import {
   TrackParams,
   Plugin,
   SegmentEvent,
+  FlushParams,
+  CloseAndFlushParams,
 } from './types'
 import { Context } from './context'
 import { NodeEventQueue } from './event-queue'
+import { FetchHTTPClient } from '../lib/http-client'
 
 export class Analytics extends NodeEmitter implements CoreAnalytics {
   private readonly _eventFactory: NodeEventFactory
@@ -25,6 +28,8 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
   private readonly _publisher: ReturnType<
     typeof createConfiguredNodePlugin
   >['publisher']
+
+  private _isFlushing = false
 
   private readonly _queue: NodeEventQueue
 
@@ -47,14 +52,20 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
         host: settings.host,
         path: settings.path,
         maxRetries: settings.maxRetries ?? 3,
-        maxEventsInBatch: settings.maxEventsInBatch ?? 15,
+        flushAt: settings.flushAt ?? settings.maxEventsInBatch ?? 15,
         httpRequestTimeout: settings.httpRequestTimeout,
         disable: settings.disable,
         flushInterval,
+        httpClient:
+          typeof settings.httpClient === 'function'
+            ? new FetchHTTPClient(settings.httpClient)
+            : settings.httpClient ?? new FetchHTTPClient(),
+        oauthSettings: settings.oauthSettings,
       },
       this as NodeEmitter
     )
     this._publisher = publisher
+
     this.ready = this.register(plugin).then(() => undefined)
 
     this.emit('initialize', settings)
@@ -73,18 +84,42 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
    */
   public closeAndFlush({
     timeout = this._closeAndFlushDefaultTimeout,
-  }: {
-    /** Set a maximum time permitted to wait before resolving. */
-    timeout?: number
-  } = {}): Promise<void> {
-    this._publisher.flushAfterClose(this._pendingEvents)
-    this._isClosed = true
+  }: CloseAndFlushParams = {}): Promise<void> {
+    return this.flush({ timeout, close: true })
+  }
+
+  /**
+   * Call this method to flush all existing events..
+   * This method also waits for any event method-specific callbacks to be triggered,
+   * and any of their subsequent promises to be resolved/rejected.
+   */
+  public async flush({
+    timeout,
+    close = false,
+  }: FlushParams = {}): Promise<void> {
+    if (this._isFlushing) {
+      // if we're already flushing, then we don't need to do anything
+      console.warn(
+        'Overlapping flush calls detected. Please wait for the previous flush to finish before calling .flush again'
+      )
+      return
+    } else {
+      this._isFlushing = true
+    }
+    if (close) {
+      this._isClosed = true
+    }
+    this._publisher.flush(this._pendingEvents)
     const promise = new Promise<void>((resolve) => {
       if (!this._pendingEvents) {
         resolve()
       } else {
-        this.once('drained', () => resolve())
+        this.once('drained', () => {
+          resolve()
+        })
       }
+    }).finally(() => {
+      this._isFlushing = false
     })
     return timeout ? pTimeout(promise, timeout).catch(() => undefined) : promise
   }
@@ -113,13 +148,21 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
    * @link https://segment.com/docs/connections/sources/catalog/libraries/server/node/#alias
    */
   alias(
-    { userId, previousId, context, timestamp, integrations }: AliasParams,
+    {
+      userId,
+      previousId,
+      context,
+      timestamp,
+      integrations,
+      messageId,
+    }: AliasParams,
     callback?: Callback
   ): void {
     const segmentEvent = this._eventFactory.alias(userId, previousId, {
       context,
       integrations,
       timestamp,
+      messageId,
     })
     this._dispatch(segmentEvent, callback)
   }
@@ -137,6 +180,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       traits = {},
       context,
       integrations,
+      messageId,
     }: GroupParams,
     callback?: Callback
   ): void {
@@ -146,6 +190,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       userId,
       timestamp,
       integrations,
+      messageId,
     })
 
     this._dispatch(segmentEvent, callback)
@@ -163,6 +208,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       context,
       timestamp,
       integrations,
+      messageId,
     }: IdentifyParams,
     callback?: Callback
   ): void {
@@ -172,6 +218,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       userId,
       timestamp,
       integrations,
+      messageId,
     })
     this._dispatch(segmentEvent, callback)
   }
@@ -190,6 +237,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       context,
       timestamp,
       integrations,
+      messageId,
     }: PageParams,
     callback?: Callback
   ): void {
@@ -197,7 +245,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       category ?? null,
       name ?? null,
       properties,
-      { context, anonymousId, userId, timestamp, integrations }
+      { context, anonymousId, userId, timestamp, integrations, messageId }
     )
     this._dispatch(segmentEvent, callback)
   }
@@ -218,6 +266,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       context,
       timestamp,
       integrations,
+      messageId,
     }: PageParams,
     callback?: Callback
   ): void {
@@ -225,7 +274,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       category ?? null,
       name ?? null,
       properties,
-      { context, anonymousId, userId, timestamp, integrations }
+      { context, anonymousId, userId, timestamp, integrations, messageId }
     )
 
     this._dispatch(segmentEvent, callback)
@@ -244,6 +293,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       context,
       timestamp,
       integrations,
+      messageId,
     }: TrackParams,
     callback?: Callback
   ): void {
@@ -253,6 +303,7 @@ export class Analytics extends NodeEmitter implements CoreAnalytics {
       anonymousId,
       timestamp,
       integrations,
+      messageId,
     })
 
     this._dispatch(segmentEvent, callback)

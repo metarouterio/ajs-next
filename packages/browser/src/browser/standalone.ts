@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import { getCDN, setGlobalCDNUrl } from '../lib/parse-cdn'
-import { setVersionType } from '../plugins/segmentio/normalize'
+import { setVersionType } from '../lib/version-type'
 
 if (process.env.ASSET_PATH) {
   if (process.env.ASSET_PATH === '/dist/umd/') {
@@ -28,18 +28,18 @@ import {
   loadAjsClassicFallback,
   isAnalyticsCSPError,
 } from '../lib/csp-detection'
+import { setGlobalAnalyticsKey } from '../lib/global-analytics-helper'
 
 let ajsIdentifiedCSP = false
 
-const sendErrorMetrics = (() => {
+const sendErrorMetrics = (tags: string[]) => {
+  // this should not be instantied at the root, or it will break ie11.
   const metrics = new RemoteMetrics()
-  return (tags: string[]) => {
-    metrics.increment('analytics_js.invoke.error', [
-      ...tags,
-      `wk:${embeddedWriteKey()}`,
-    ])
-  }
-})()
+  metrics.increment('analytics_js.invoke.error', [
+    ...tags,
+    `wk:${embeddedWriteKey()}`,
+  ])
+}
 
 function onError(err?: unknown) {
   console.error('[analytics.js]', 'Failed to load Analytics.js', err)
@@ -70,6 +70,16 @@ async function attempt<T>(promise: () => Promise<T>) {
   } catch (err) {
     onError(err)
   }
+}
+
+const globalAnalyticsKey = (
+  document.querySelector(
+    'script[data-global-segment-analytics-key]'
+  ) as HTMLScriptElement
+)?.dataset.globalSegmentAnalyticsKey
+
+if (globalAnalyticsKey) {
+  setGlobalAnalyticsKey(globalAnalyticsKey)
 }
 
 if (shouldPolyfill()) {
