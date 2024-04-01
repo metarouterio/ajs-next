@@ -10,6 +10,7 @@ export interface CookieOptions {
   path?: string
   secure?: boolean
   sameSite?: string
+  ajsKeyOverwrite?: string
 }
 
 /**
