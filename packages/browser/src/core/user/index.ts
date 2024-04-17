@@ -82,7 +82,7 @@ export class User {
 
     this.idKey = options.cookie?.key ?? defaults.cookie.key
     this.traitsKey = options.localStorage?.key ?? defaults.localStorage.key
-    this.anonKey = 'ajs_anonymous_id'
+    this.anonKey = cookieOptions?.ajsKeyOverwrite ?? 'ajs_anonymous_id'
 
     this.identityStore = this.createStorage(this.options, cookieOptions)
 

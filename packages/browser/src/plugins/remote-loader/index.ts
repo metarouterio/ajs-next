@@ -220,7 +220,9 @@ async function loadPluginFactory(
   remotePlugin: RemotePlugin,
   obfuscate?: boolean
 ): Promise<void | PluginFactory> {
-  const defaultCdn = new RegExp('https://cdn.segment.(com|build)')
+  const defaultCdn = new RegExp(
+    'https://metarouter-ajs-next-destinations-stage.s3.amazonaws.(com|build)'
+  )
   const cdn = getCDN()
 
   if (obfuscate) {
