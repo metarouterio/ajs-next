@@ -147,6 +147,8 @@ export interface InitOptions {
   disable?:
     | boolean
     | ((cdnSettings: LegacySettings) => boolean | Promise<boolean>)
+  writeKey?: string
+  ingestionURL?: string
 }
 
 /* analytics-classic stubs */
