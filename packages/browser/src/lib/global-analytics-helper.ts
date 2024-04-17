@@ -11,7 +11,16 @@ let _globalAnalyticsKey = 'analytics'
  * @returns AnalyticsSnippet
  */
 export function getGlobalAnalytics(): AnalyticsSnippet | undefined {
-  return (window as any)[_globalAnalyticsKey]
+  const keys = _globalAnalyticsKey.split('.')
+  let currentObj: any = window
+  if (keys.length > 1) {
+    keys.forEach((key: string) => {
+      currentObj = currentObj[key]
+    })
+    return currentObj
+  } else {
+    return (window as any)[_globalAnalyticsKey]
+  }
 }
 
 /**
@@ -27,5 +36,22 @@ export function setGlobalAnalyticsKey(key: string) {
  * @param analytics analytics snippet
  */
 export function setGlobalAnalytics(analytics: AnalyticsSnippet): void {
-  ;(window as any)[_globalAnalyticsKey] = analytics
+  const keys = _globalAnalyticsKey.split('.')
+  let currentObj: any = window
+  const lastIndex = keys.length - 1
+
+  if (keys.length > 1) {
+    keys.forEach((key: string, index: number) => {
+      if (index === lastIndex) {
+        currentObj[key] = analytics
+      } else {
+        if (!currentObj[key]) {
+          currentObj[key] = {}
+        }
+        currentObj = currentObj[key]
+      }
+    })
+  } else {
+    ;(window as any)[_globalAnalyticsKey] = analytics
+  }
 }
