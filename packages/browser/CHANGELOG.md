@@ -1,5 +1,125 @@
 # @segment/analytics-next
 
+## 1.76.0
+
+### Minor Changes
+
+- [#1166](https://github.com/segmentio/analytics-next/pull/1166) [`9e6db285`](https://github.com/segmentio/analytics-next/commit/9e6db2857798f4b5bfdbbfe3570b3d4d83294a79) Thanks [@danieljackins](https://github.com/danieljackins)! - Add sampling logic and block non debug traffic
+
+## 1.75.0
+
+### Minor Changes
+
+- [#1160](https://github.com/segmentio/analytics-next/pull/1160) [`bedea03b`](https://github.com/segmentio/analytics-next/commit/bedea03bb50e01a7df71461087a9ec340375906d) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Adding apiHost to the readonly data available from Analytics.settings
+
+## 1.74.0
+
+### Minor Changes
+
+- [#1157](https://github.com/segmentio/analytics-next/pull/1157) [`3f58366b`](https://github.com/segmentio/analytics-next/commit/3f58366b0e01aa723d9d3bbb9fe8549d3082eb8e) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Refactoring CDN Url to be available from analytics settings
+
+* [#1128](https://github.com/segmentio/analytics-next/pull/1128) [`c45d445b`](https://github.com/segmentio/analytics-next/commit/c45d445beb1b1d5b03738557720720d05e9c08a3) Thanks [@silesky](https://github.com/silesky)! - Do not make plugin.version required
+
+### Patch Changes
+
+- Updated dependencies [[`c45d445b`](https://github.com/segmentio/analytics-next/commit/c45d445beb1b1d5b03738557720720d05e9c08a3), [`9ece2726`](https://github.com/segmentio/analytics-next/commit/9ece2726de257ecd594d601ef098bea746858133)]:
+  - @segment/analytics-core@1.8.0
+
+## 1.73.0
+
+### Minor Changes
+
+- [#1084](https://github.com/segmentio/analytics-next/pull/1084) [`5647624c`](https://github.com/segmentio/analytics-next/commit/5647624cbcd4984e5bdbf2e9c907619366864c4e) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Adding support for 429 response from the server
+
+### Patch Changes
+
+- Updated dependencies [[`5647624c`](https://github.com/segmentio/analytics-next/commit/5647624cbcd4984e5bdbf2e9c907619366864c4e)]:
+  - @segment/analytics-core@1.7.0
+
+## 1.72.2
+
+### Patch Changes
+
+- [#1125](https://github.com/segmentio/analytics-next/pull/1125) [`7aed96e`](https://github.com/segmentio/analytics-next/commit/7aed96eac40a83bd392daa91838ed1f46e2dc9fd) Thanks [@silesky](https://github.com/silesky)! - Update init to allow for asset path overriding and fix debugging experience
+
+* [#1121](https://github.com/segmentio/analytics-next/pull/1121) [`d98dcd2`](https://github.com/segmentio/analytics-next/commit/d98dcd2f16aa8a8940e72fde0ba75d7974fe45fa) Thanks [@silesky](https://github.com/silesky)! - Fix enrichment plugins not waiting for .load to resolve when plugin is registered manually
+
+- [#1127](https://github.com/segmentio/analytics-next/pull/1127) [`6bfaa3e`](https://github.com/segmentio/analytics-next/commit/6bfaa3e9d9ca767f54bb8185744e94be08ce9bc8) Thanks [@silesky](https://github.com/silesky)! - If npm version, do not read buffered events from window.analytics
+
+## 1.72.1
+
+### Patch Changes
+
+- [#1115](https://github.com/segmentio/analytics-next/pull/1115) [`73ac593`](https://github.com/segmentio/analytics-next/commit/73ac593226159423b2f63cac190eebd347bbb75a) Thanks [@silesky](https://github.com/silesky)! - Update argument resolver to user interface rather than full User
+
+## 1.72.0
+
+### Minor Changes
+
+- [#1107](https://github.com/segmentio/analytics-next/pull/1107) [`91e72ba`](https://github.com/segmentio/analytics-next/commit/91e72ba302fc45b4adb7aaeeb0a1f4ce3582dda6) Thanks [@silesky](https://github.com/silesky)! - Vendor tsub.js 2.0.0
+
+## 1.71.0
+
+### Minor Changes
+
+- [#1101](https://github.com/segmentio/analytics-next/pull/1101) [`aee18d2`](https://github.com/segmentio/analytics-next/commit/aee18d222ddfb2273399987fabf92b54876f5e88) Thanks [@silesky](https://github.com/silesky)! - Export segment plugin and arg resolvers
+
+* [#1100](https://github.com/segmentio/analytics-next/pull/1100) [`e60f625`](https://github.com/segmentio/analytics-next/commit/e60f6252687d977b76b09ca9b756c790d341111a) Thanks [@danieljackins](https://github.com/danieljackins)! - Flush large keepalive requests
+
+### Patch Changes
+
+- [#1101](https://github.com/segmentio/analytics-next/pull/1101) [`aee18d2`](https://github.com/segmentio/analytics-next/commit/aee18d222ddfb2273399987fabf92b54876f5e88) Thanks [@silesky](https://github.com/silesky)! - Add edgeFunction to CDNSettings type
+
+## 1.70.0
+
+### Minor Changes
+
+- [#1088](https://github.com/segmentio/analytics-next/pull/1088) [`2299e9a`](https://github.com/segmentio/analytics-next/commit/2299e9a7a83f421f0bbf7fac03abc9c030296cac) Thanks [@silesky](https://github.com/silesky)! - Refactor to change interface name from `legacySettings` -> `cdnSettings`, in order to clarify code.
+
+* [#1090](https://github.com/segmentio/analytics-next/pull/1090) [`b611746`](https://github.com/segmentio/analytics-next/commit/b611746e23c1fab7321bb4d100f236813ffb416c) Thanks [@silesky](https://github.com/silesky)! - - Add public settings API
+  - Do not expose loadLegacySettings / loadCDNSettings (private API)
+
+## 1.69.0
+
+### Minor Changes
+
+- [#1080](https://github.com/segmentio/analytics-next/pull/1080) [`e884b61`](https://github.com/segmentio/analytics-next/commit/e884b6119db4ddbc557577539aa91b95481776a2) Thanks [@silesky](https://github.com/silesky)! - Addresses an issue where, if one of the non-destination actions fails to load/is blocked, the entire SDK fails to load. This is most notable in GA4, where, if GA was blocked, Segment initialization would fail.
+
+### Patch Changes
+
+- Updated dependencies [[`e884b61`](https://github.com/segmentio/analytics-next/commit/e884b6119db4ddbc557577539aa91b95481776a2), [`e884b61`](https://github.com/segmentio/analytics-next/commit/e884b6119db4ddbc557577539aa91b95481776a2)]:
+  - @segment/analytics-core@1.6.0
+
+## 1.68.0
+
+### Minor Changes
+
+- [#1045](https://github.com/segmentio/analytics-next/pull/1045) [`3c37def`](https://github.com/segmentio/analytics-next/commit/3c37def422f82073e7e33d2d7c7c26c4637afdc9) Thanks [@silesky](https://github.com/silesky)! - - Remove validation plugin
+  - Remove `spark-md5` dependency
+  - Update messageId algorithm to be consistent with node (analytics-next-[epoch time]-[uuid])
+  - Browser Validation:
+    - Throws errors in the EventFactory (not just in a plugin) if the event is invalid
+
+### Patch Changes
+
+- Updated dependencies [[`3c37def`](https://github.com/segmentio/analytics-next/commit/3c37def422f82073e7e33d2d7c7c26c4637afdc9), [`1635e42`](https://github.com/segmentio/analytics-next/commit/1635e42ffae8fd8e8d18be94f47a22a802fecec8)]:
+  - @segment/analytics-core@1.5.1
+
+## 1.67.0
+
+### Minor Changes
+
+- [#1053](https://github.com/segmentio/analytics-next/pull/1053) [`fd09fbc`](https://github.com/segmentio/analytics-next/commit/fd09fbcc943449eccbfe985dfed083b746bd2cab) Thanks [@silesky](https://github.com/silesky)! - Allow `*` in integration name field to apply middleware to all destinations plugins.
+  ```ts
+  addDestinationMiddleware('*', ({ ... }) => {
+   ...
+  })
+  ```
+
+### Patch Changes
+
+- [#1067](https://github.com/segmentio/analytics-next/pull/1067) [`e3f3bee`](https://github.com/segmentio/analytics-next/commit/e3f3bee5831abbe9b3005f77266f72ccda65f9e6) Thanks [@oscb](https://github.com/oscb)! - fix: fixes buffering for legacy destinations
+
 ## 1.66.0
 
 ### Minor Changes

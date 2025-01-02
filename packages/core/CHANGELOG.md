@@ -1,5 +1,35 @@
 # @segment/analytics-core
 
+## 1.8.0
+
+### Minor Changes
+
+- [#1128](https://github.com/segmentio/analytics-next/pull/1128) [`c45d445b`](https://github.com/segmentio/analytics-next/commit/c45d445beb1b1d5b03738557720720d05e9c08a3) Thanks [@silesky](https://github.com/silesky)! - Do not make plugin.version required
+
+* [#1156](https://github.com/segmentio/analytics-next/pull/1156) [`9ece2726`](https://github.com/segmentio/analytics-next/commit/9ece2726de257ecd594d601ef098bea746858133) Thanks [@mrmckeb](https://github.com/mrmckeb)! - Improves support for TypeScript's `exactOptionalPropertyTypes` by allowing `undefined` to be passed to optional properties.
+
+## 1.7.0
+
+### Minor Changes
+
+- [#1084](https://github.com/segmentio/analytics-next/pull/1084) [`5647624c`](https://github.com/segmentio/analytics-next/commit/5647624cbcd4984e5bdbf2e9c907619366864c4e) Thanks [@MichaelGHSeg](https://github.com/MichaelGHSeg)! - Adding support for 429 response from the server
+
+## 1.6.0
+
+### Minor Changes
+
+- [#1080](https://github.com/segmentio/analytics-next/pull/1080) [`e884b61`](https://github.com/segmentio/analytics-next/commit/e884b6119db4ddbc557577539aa91b95481776a2) Thanks [@silesky](https://github.com/silesky)! - Do not throw errors in .register() method.
+
+* [#1080](https://github.com/segmentio/analytics-next/pull/1080) [`e884b61`](https://github.com/segmentio/analytics-next/commit/e884b6119db4ddbc557577539aa91b95481776a2) Thanks [@silesky](https://github.com/silesky)! - Addresses an issue where, if one of the non-destination actions fails to load/is blocked, the entire SDK fails to load. This is most notable in GA4, where, if GA was blocked, Segment initialization would fail.
+
+## 1.5.1
+
+### Patch Changes
+
+- [#1045](https://github.com/segmentio/analytics-next/pull/1045) [`3c37def`](https://github.com/segmentio/analytics-next/commit/3c37def422f82073e7e33d2d7c7c26c4637afdc9) Thanks [@silesky](https://github.com/silesky)! - Share `EventFactory` between node and browser.
+
+* [#1076](https://github.com/segmentio/analytics-next/pull/1076) [`1635e42`](https://github.com/segmentio/analytics-next/commit/1635e42ffae8fd8e8d18be94f47a22a802fecec8) Thanks [@chrisradek](https://github.com/chrisradek)! - Fixes an issue introduced in v1.66.0 that caused analytics plugins to be removed from event processing if a destination threw an error while loading.
+
 ## 1.5.0
 
 ### Minor Changes

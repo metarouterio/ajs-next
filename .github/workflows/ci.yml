@@ -26,8 +26,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
       - run: yarn turbo run --filter='./packages/node*' lint
-      - run: yarn turbo run --filter='./packages/node*' test
+      - run: COVERAGE=true yarn turbo run --filter='./packages/node*' test
       - run: yarn turbo run --filter='./packages/node-integration-tests' test:perf-and-durability
+      - uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          flags: node
+          directory: ./packages/node/coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
   analytics-node-cf-workers:
     name: 'analytics-node QA (Cloudflare Workers)'
     runs-on: ubuntu-latest
@@ -58,7 +64,7 @@ jobs:
       - uses: browser-actions/setup-chrome@v1
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 16 # UPDATE TO NODE 20!!!
           cache: 'yarn'
       - run: yarn install --immutable
       - name: Turbo cache

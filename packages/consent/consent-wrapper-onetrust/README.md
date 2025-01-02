@@ -1,16 +1,13 @@
 # @segment/analytics-consent-wrapper-onetrust
 
-### Try our Playground! [Next.js CodeSandbox](https://codesandbox.io/p/sandbox/focused-bhaskara-jysqr5) 🚀
-
 <img src="img/onetrust-popup.jpg" width="500" />
 
 # Quick Start
 
 ## Configure OneTrust + Segment
 
-
-
 ### Requirements
+
 Ensure that consent is enabled and that you have registered your integration-to-category mappings in Segment, which you can do through the Segment UI.
 
 Note: "categories" are called "groups" in OneTrust.
@@ -21,9 +18,10 @@ If you don't see a "Consent Management" option like the one below, please contac
 
 - Debugging hints: this library expects the [OneTrust Banner SDK](https://community.cookiepro.com/s/article/UUID-d8291f61-aa31-813a-ef16-3f6dec73d643?language=en_US) to be available in order interact with OneTrust. This library derives the group IDs that are active for the current user from the `window.OneTrustActiveGroups` object provided by the OneTrust SDK. [Read this for more information [community.cookiepro.com]](https://community.cookiepro.com/s/article/UUID-66bcaaf1-c7ca-5f32-6760-c75a1337c226?language=en_US).
 
-
 ## For snippet users
+
 ### Add OneTrust snippet and integration to your page
+
 ```html
 <head>
   <!-- OneTrust Cookies Consent Notice start for example.com -->
@@ -34,7 +32,7 @@ If you don't see a "Consent Management" option like the one below, please contac
     data-domain-script="0000-0000-000-0000"
   ></script>
   <script type="text/javascript">
-    function OptanonWrapper() { }
+    function OptanonWrapper() {}
   </script>
 
   <!-- Add Segment's OneTrust Consent Wrapper -->
@@ -54,6 +52,7 @@ If you don't see a "Consent Management" option like the one below, please contac
 ```
 
 #### ⚠️ Reminder: _you must modify_ `analytics.load('....')` from the original Segment snippet. See markup comment in example above.
+
 ## For `npm` library users
 
 1. Ensure that OneTrust Snippet is loaded. [See example above.](#add-onetrust-snippet-and-integration-to-your-page)
@@ -83,37 +82,44 @@ withOneTrust(analytics).load({ writeKey: '<MY_WRITE_KEY'> })
 
 ```
 
-## Other examples:
+## Settings
 
-> Note: Playgrounds are meant for experimentation / testing, and as such, may be a bit overly complicated.
-> We recommend you try to follcaow the documentation for best practice.
+### Consent Models
 
-- [Standalone playground](/playgrounds/standalone-playground/pages/index-consent.html)
+- **opt-in** - (strict, GDPR scenario) -- wait for explicit consent (i.e. alert box to be closed) before loading device mode destinations and initializing Segment. If consent is not given (no mapped categories are consented to), then Segment is not loaded.
+
+- **opt-out** - Load segment immediately and all destinations, based on default categories. For device mode destinations, any analytics.js-originated events (e.g analytics.track) will be filtered based on consent.
+
+- **default/other** - opt-out
+
+This wrapper uses the `OneTrust.getDomainData()` API to get the consent model for a given geolocation. Default behavior can be overridden by doing:
+
+```ts
+withOneTrust(analytics, { consentModel: () => 'opt-in' | 'opt-out' })
+  .load({ writeKey: '<MY_WRITE_KEY>' })
+```
 
 ## Environments
 
 ### Build Artifacts
 
-- We build three versions of the library:
+- We build the following versions of the library
 
-1. `cjs` (CommonJS modules) - for npm library users
-2. `esm` (es6 modules) - for npm library users
-3. `umd` (bundle) - for snippet users (typically)
+| Format | Description | Path |
+|--------|-------------|------|
+| `cjs` (CommonJS modules) | For npm library users | `/dist/cjs/index.js` |
+| `esm` (ES6 modules) | For npm library users | `/dist/esm/index.js` |
+| `global` (window bundle) | This is the least amount of code. When you load this bundle via script tag, it simply exposes `window.withOneTrust` | `/dist/umd/analytics-onetrust.global.js` |
+| `umd` (umd bundle) | When a UMD bundle is required | `/dist/umd/analytics-onetrust.umd.js` |
 
 ### Browser Support
 
 - `cjs/esm` - Support modern JS syntax (ES2020). These are our npm library users, so we expect them to transpile this module themselves using something like babel/webpack if they need extra legacy browser support.
 
-- `umd` - Support back to IE11, but **do not** polyfill . See our docs on [supported browsers](https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/supported-browsers).
+- `umd/global` - Support back to IE11, but **do not** polyfill . See our docs on [supported browsers](https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/supported-browsers).
 
 In order to get full ie11 support, you are expected to bring your own polyfills. e.g. adding the following to your script tag:
 
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.7.0/polyfill.min.js"></script>
-```
-
-or
-
-```html
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es5,es2015,es2016,es2017,es2018,es2019,es2020&flags=gated"></script>
 ```

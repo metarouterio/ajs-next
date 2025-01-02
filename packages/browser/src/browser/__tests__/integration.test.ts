@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import { cdnSettingsKitchenSink } from '../../test-helpers/fixtures/cdn-settings'
+import {
+  cdnSettingsKitchenSink,
+  cdnSettingsMinimal,
+} from '../../test-helpers/fixtures/cdn-settings'
 import { createMockFetchImplementation } from '../../test-helpers/fixtures/create-fetch-method'
 import { Context } from '../../core/context'
 import { Plugin } from '../../core/plugin'
@@ -7,8 +10,8 @@ import { JSDOM } from 'jsdom'
 import { Analytics, InitOptions } from '../../core/analytics'
 import { LegacyDestination } from '../../plugins/ajs-destination'
 import { PersistedPriorityQueue } from '../../lib/priority-queue/persisted'
-// @ts-ignore loadLegacySettings mocked dependency is accused as unused
-import { AnalyticsBrowser, loadLegacySettings } from '..'
+// @ts-ignore loadCDNSettings mocked dependency is accused as unused
+import { AnalyticsBrowser, loadCDNSettings } from '..'
 // @ts-ignore isOffline mocked dependency is accused as unused
 import { isOffline } from '../../core/connection'
 import * as SegmentPlugin from '../../plugins/segmentio'
@@ -23,7 +26,8 @@ import {
   highEntropyTestData,
   lowEntropyTestData,
 } from '../../test-helpers/fixtures/client-hints'
-import { getGlobalAnalytics, NullAnalytics } from '../..'
+import { getGlobalAnalytics } from '../../lib/global-analytics-helper'
+import { NullAnalytics } from '../../core/analytics'
 import { recordIntegrationMetric } from '../../core/stats/metric-helpers'
 
 let fetchCalls: ReturnType<typeof parseFetchCall>[] = []
@@ -650,7 +654,6 @@ describe('Dispatch', () => {
         "plugin_time",
         "plugin_time",
         "plugin_time",
-        "plugin_time",
         "message_delivered",
         "delivered",
       ]
@@ -878,6 +881,116 @@ describe('addDestinationMiddleware', () => {
     })
   })
 
+  it('drops events if  next is never called', async () => {
+    const testPlugin: Plugin = {
+      name: 'test',
+      type: 'destination',
+      version: '0.1.0',
+      load: () => Promise.resolve(),
+      track: jest.fn(),
+      isLoaded: () => true,
+    }
+
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const fullstory = new ActionDestination('fullstory', testPlugin)
+
+    await analytics.register(fullstory)
+    await fullstory.ready()
+    analytics.addDestinationMiddleware('fullstory', () => {
+      // do nothing
+    })
+
+    await analytics.track('foo')
+
+    expect(testPlugin.track).not.toHaveBeenCalled()
+  })
+
+  it('drops events if next is called with null', async () => {
+    const testPlugin: Plugin = {
+      name: 'test',
+      type: 'destination',
+      version: '0.1.0',
+      load: () => Promise.resolve(),
+      track: jest.fn(),
+      isLoaded: () => true,
+    }
+
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const fullstory = new ActionDestination('fullstory', testPlugin)
+
+    await analytics.register(fullstory)
+    await fullstory.ready()
+    analytics.addDestinationMiddleware('fullstory', ({ next }) => {
+      next(null)
+    })
+
+    await analytics.track('foo')
+
+    expect(testPlugin.track).not.toHaveBeenCalled()
+  })
+
+  it('applies to all destinations if * glob is passed as name argument', async () => {
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const p1 = new ActionDestination('p1', { ...googleAnalytics })
+    const p2 = new ActionDestination('p2', { ...amplitude })
+
+    await analytics.register(p1, p2)
+    await p1.ready()
+    await p2.ready()
+
+    const middleware = jest.fn()
+
+    analytics.addDestinationMiddleware('*', middleware)
+    await analytics.track('foo')
+
+    expect(middleware).toHaveBeenCalledTimes(2)
+    expect(middleware).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: 'p1' })
+    )
+    expect(middleware).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: 'p2' })
+    )
+  })
+
+  it('middleware is only applied to type: destination plugins', async () => {
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const utilityPlugin = new ActionDestination('p1', {
+      ...xt,
+      type: 'utility',
+    })
+
+    const destinationPlugin = new ActionDestination('p2', {
+      ...xt,
+      type: 'destination',
+    })
+
+    await analytics.register(utilityPlugin, destinationPlugin)
+    await utilityPlugin.ready()
+    await destinationPlugin.ready()
+
+    const middleware = jest.fn()
+
+    analytics.addDestinationMiddleware('*', middleware)
+    await analytics.track('foo')
+
+    expect(middleware).toHaveBeenCalledTimes(1)
+    expect(middleware).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: 'p2' })
+    )
+  })
+
   it('supports registering action destination middlewares', async () => {
     const testPlugin: Plugin = {
       name: 'test',
@@ -921,22 +1034,108 @@ describe('use', () => {
   })
 })
 
-describe('timeout', () => {
-  it('has a default timeout value', async () => {
+describe('public settings api', () => {
+  it('has expected settings', async () => {
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+      cdnSettings: cdnSettingsMinimal,
+    })
+
+    expect(analytics.settings).toEqual(
+      expect.objectContaining({
+        writeKey,
+        cdnSettings: cdnSettingsMinimal,
+        timeout: 300,
+        cdnURL: 'https://cdn.segment.com',
+        apiHost: 'api.segment.io/v1',
+      })
+    )
+  })
+
+  it('should have a writeKey', async () => {
     const [analytics] = await AnalyticsBrowser.load({
       writeKey,
     })
-    //@ts-ignore
-    expect(analytics.settings.timeout).toEqual(300)
+
+    expect(analytics.settings.writeKey).toBe(writeKey)
+  })
+
+  it('should have cdn settings', async () => {
+    const [analytics] = await AnalyticsBrowser.load({
+      writeKey,
+      cdnSettings: cdnSettingsMinimal,
+    })
+
+    expect(analytics.settings.cdnSettings).toEqual(cdnSettingsMinimal)
   })
 
   it('can set a timeout value', async () => {
     const [analytics] = await AnalyticsBrowser.load({
       writeKey,
     })
+    expect(analytics.settings.timeout).toEqual(300)
     analytics.timeout(50)
-    //@ts-ignore
     expect(analytics.settings.timeout).toEqual(50)
+  })
+})
+
+describe('register', () => {
+  it('will not invoke any plugins that have initialization errors', async () => {
+    const analytics = AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const errorPlugin = new ActionDestination('Error Plugin', {
+      ...googleAnalytics,
+      load: () => Promise.reject('foo'),
+    })
+    const errorPluginSpy = jest.spyOn(errorPlugin, 'track')
+
+    const goodPlugin = new ActionDestination('Good Plugin', {
+      ...googleAnalytics,
+      load: () => Promise.resolve('foo'),
+    })
+
+    await analytics
+    const goodPluginSpy = jest.spyOn(goodPlugin, 'track')
+
+    await analytics.register(goodPlugin, errorPlugin)
+    await errorPlugin.ready()
+    await goodPlugin.ready()
+
+    await analytics.track('foo')
+
+    expect(errorPluginSpy).not.toHaveBeenCalled()
+    expect(goodPluginSpy).toHaveBeenCalled()
+  })
+
+  it('will emit initialization errors', async () => {
+    const analytics = AnalyticsBrowser.load({
+      writeKey,
+    })
+
+    const errorPlugin = new ActionDestination('Error Plugin', {
+      ...googleAnalytics,
+      load: () => Promise.reject('foo'),
+    })
+
+    const goodPlugin = new ActionDestination('Good Plugin', {
+      ...googleAnalytics,
+      load: () => Promise.resolve('foo'),
+    })
+
+    await analytics
+    const errorPluginName = new Promise<string>((resolve) => {
+      analytics.instance?.queue.on('initialization_failure', (plugin) =>
+        resolve(plugin.name)
+      )
+    })
+
+    await analytics.register(goodPlugin, errorPlugin)
+    await errorPlugin.ready()
+    await goodPlugin.ready()
+
+    expect(await errorPluginName).toBe('Error Plugin')
   })
 })
 
@@ -1024,7 +1223,7 @@ describe('retries', () => {
 
   beforeEach(async () => {
     // @ts-ignore ignore reassining function
-    loadLegacySettings = jest.fn().mockReturnValue(
+    loadCDNSettings = jest.fn().mockReturnValue(
       Promise.resolve({
         integrations: { 'Segment.io': { retryQueue: false } },
       })

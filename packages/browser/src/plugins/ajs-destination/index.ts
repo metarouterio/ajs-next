@@ -1,11 +1,11 @@
 import { Integrations, JSONObject } from '../../core/events'
 import { Alias, Facade, Group, Identify, Page, Track } from '@segment/facade'
 import { Analytics, InitOptions } from '../../core/analytics'
-import { LegacySettings } from '../../browser'
+import { CDNSettings } from '../../browser'
 import { isOffline, isOnline } from '../../core/connection'
 import { Context, ContextCancelation } from '../../core/context'
 import { isServer } from '../../core/environment'
-import { DestinationPlugin, Plugin } from '../../core/plugin'
+import { InternalPluginWithAddMiddleware, Plugin } from '../../core/plugin'
 import { attempt } from '@segment/analytics-core'
 import { isPlanEventEnabled } from '../../lib/is-plan-event-enabled'
 import { mergedOptions } from '../../lib/merged-options'
@@ -65,12 +65,12 @@ async function flushQueue(
   return queue
 }
 
-export class LegacyDestination implements DestinationPlugin {
+export class LegacyDestination implements InternalPluginWithAddMiddleware {
   name: string
   version: string
   settings: JSONObject
   options: InitOptions = {}
-  type: Plugin['type'] = 'destination'
+  readonly type = 'destination'
   middleware: DestinationMiddlewareFunction[] = []
 
   private _ready: boolean | undefined
@@ -192,7 +192,7 @@ export class LegacyDestination implements DestinationPlugin {
     return (
       // page events can't be buffered because of destinations that automatically add page views
       ctx.event.type !== 'page' &&
-      (isOffline() || this._ready === false || this._initialized === false)
+      (isOffline() || this._ready !== true || this._initialized !== true)
     )
   }
 
@@ -226,7 +226,6 @@ export class LegacyDestination implements DestinationPlugin {
             type: 'Dropped by plan',
           })
         )
-        return ctx
       } else {
         ctx.updateEvent('integrations', {
           ...ctx.event.integrations,
@@ -242,7 +241,6 @@ export class LegacyDestination implements DestinationPlugin {
             type: 'Dropped by plan',
           })
         )
-        return ctx
       }
     }
 
@@ -315,6 +313,11 @@ export class LegacyDestination implements DestinationPlugin {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
+      if (isOffline() || this._ready !== true || this._initialized !== true) {
+        this.scheduleFlush()
+        return
+      }
+
       this.flushing = true
       this.buffer = await flushQueue(this, this.buffer)
       this.flushing = false
@@ -328,7 +331,7 @@ export class LegacyDestination implements DestinationPlugin {
 
 export function ajsDestinations(
   writeKey: string,
-  settings: LegacySettings,
+  settings: CDNSettings,
   globalIntegrations: Integrations = {},
   options: InitOptions = {},
   routingMiddleware?: DestinationMiddlewareFunction,

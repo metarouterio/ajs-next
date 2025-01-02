@@ -1,6 +1,6 @@
 import { Facade } from '@segment/facade'
 import { Analytics } from '../../core/analytics'
-import { LegacySettings } from '../../browser'
+import { CDNSettings } from '../../browser'
 import { isOffline } from '../../core/connection'
 import { Context } from '../../core/context'
 import { Plugin } from '../../core/plugin'
@@ -50,10 +50,23 @@ function onAlias(analytics: Analytics, json: JSON): JSON {
   return json
 }
 
+export type SegmentIOPluginMetadata = {
+  writeKey: string
+  apiHost: string
+  protocol: string
+}
+export interface SegmentIOPlugin extends Plugin {
+  metadata: SegmentIOPluginMetadata
+}
+
+export const isSegmentPlugin = (plugin: Plugin): plugin is SegmentIOPlugin => {
+  return plugin.name === 'Segment.io'
+}
+
 export function segmentio(
   analytics: Analytics,
   settings?: SegmentioSettings,
-  integrations?: LegacySettings['integrations']
+  integrations?: CDNSettings['integrations']
 ): Plugin {
   // Attach `pagehide` before buffer is created so that inflight events are added
   // to the buffer before the buffer persists events in its own `pagehide` handler.
@@ -109,11 +122,17 @@ export function segmentio(
     return client
       .dispatch(
         `${remote}/${path}`,
-        normalize(analytics, json, settings, integrations)
+        normalize(analytics, json, settings, integrations, ctx)
       )
       .then(() => ctx)
-      .catch(() => {
-        buffer.pushWithBackoff(ctx)
+      .catch((error) => {
+        ctx.log('error', 'Error sending event', error)
+        if (error.name === 'RateLimitError') {
+          const timeout = error.retryTimeout
+          buffer.pushWithBackoff(ctx, timeout)
+        } else {
+          buffer.pushWithBackoff(ctx)
+        }
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         scheduleFlush(flushing, buffer, segmentio, scheduleFlush)
         return ctx
@@ -123,7 +142,12 @@ export function segmentio(
       })
   }
 
-  const segmentio: Plugin = {
+  const segmentio: SegmentIOPlugin = {
+    metadata: {
+      writeKey,
+      apiHost,
+      protocol,
+    },
     name: 'Segment.io',
     type: 'destination',
     version: '0.1.0',
