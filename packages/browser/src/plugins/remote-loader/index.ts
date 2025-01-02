@@ -1,7 +1,7 @@
 import type { Integrations } from '../../core/events/interfaces'
-import { LegacySettings } from '../../browser'
+import { CDNSettings } from '../../browser'
 import { JSONObject, JSONValue } from '../../core/events'
-import { DestinationPlugin, Plugin } from '../../core/plugin'
+import { Plugin, InternalPluginWithAddMiddleware } from '../../core/plugin'
 import { loadScript } from '../../lib/load-script'
 import { getCDN } from '../../lib/parse-cdn'
 import {
@@ -26,9 +26,13 @@ export interface RemotePlugin {
   settings: JSONObject
 }
 
-export class ActionDestination implements DestinationPlugin {
+export class ActionDestination implements InternalPluginWithAddMiddleware {
   name: string // destination name
   version = '1.0.0'
+  /**
+   * The lifecycle name of the wrapped plugin.
+   * This does not need to be 'destination', and can be 'enrichment', etc.
+   */
   type: Plugin['type']
 
   alternativeNames: string[] = []
@@ -47,6 +51,7 @@ export class ActionDestination implements DestinationPlugin {
   }
 
   addMiddleware(...fn: DestinationMiddlewareFunction[]): void {
+    /** Make sure we only apply destination filters to actions of the "destination" type to avoid causing issues for hybrid destinations */
     if (this.type === 'destination') {
       this.middleware.push(...fn)
     }
@@ -220,36 +225,41 @@ async function loadPluginFactory(
   remotePlugin: RemotePlugin,
   obfuscate?: boolean
 ): Promise<void | PluginFactory> {
-  const defaultCdn = new RegExp('https://cdn.segment.(com|build)')
-  const cdn = getCDN()
+  try {
+    const defaultCdn = new RegExp('https://cdn.segment.(com|build)')
+    const cdn = getCDN()
 
-  if (obfuscate) {
-    const urlSplit = remotePlugin.url.split('/')
-    const name = urlSplit[urlSplit.length - 2]
-    const obfuscatedURL = remotePlugin.url.replace(
-      name,
-      btoa(name).replace(/=/g, '')
-    )
-    try {
-      await loadScript(obfuscatedURL.replace(defaultCdn, cdn))
-    } catch (error) {
-      // Due to syncing concerns it is possible that the obfuscated action destination (or requested version) might not exist.
-      // We should use the unobfuscated version as a fallback.
+    if (obfuscate) {
+      const urlSplit = remotePlugin.url.split('/')
+      const name = urlSplit[urlSplit.length - 2]
+      const obfuscatedURL = remotePlugin.url.replace(
+        name,
+        btoa(name).replace(/=/g, '')
+      )
+      try {
+        await loadScript(obfuscatedURL.replace(defaultCdn, cdn))
+      } catch (error) {
+        // Due to syncing concerns it is possible that the obfuscated action destination (or requested version) might not exist.
+        // We should use the unobfuscated version as a fallback.
+        await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
+      }
+    } else {
       await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
     }
-  } else {
-    await loadScript(remotePlugin.url.replace(defaultCdn, cdn))
-  }
 
-  // @ts-expect-error
-  if (typeof window[remotePlugin.libraryName] === 'function') {
     // @ts-expect-error
-    return window[remotePlugin.libraryName] as PluginFactory
+    if (typeof window[remotePlugin.libraryName] === 'function') {
+      // @ts-expect-error
+      return window[remotePlugin.libraryName] as PluginFactory
+    }
+  } catch (err) {
+    console.error('Failed to create PluginFactory', remotePlugin)
+    throw err
   }
 }
 
 export async function remoteLoader(
-  settings: LegacySettings,
+  settings: CDNSettings,
   userIntegrations: Integrations,
   mergedIntegrations: Record<string, JSONObject>,
   options?: InitOptions,
@@ -289,12 +299,7 @@ export async function remoteLoader(
               plugin
             )
 
-            /** Make sure we only apply destination filters to actions of the "destination" type to avoid causing issues for hybrid destinations */
-            if (
-              routing.length &&
-              routingMiddleware &&
-              plugin.type === 'destination'
-            ) {
+            if (routing.length && routingMiddleware) {
               wrapper.addMiddleware(routingMiddleware)
             }
 

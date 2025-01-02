@@ -2,12 +2,7 @@ import { getProcessEnv } from '../lib/get-process-env'
 import { getCDN, setGlobalCDNUrl } from '../lib/parse-cdn'
 
 import { fetch } from '../lib/fetch'
-import {
-  Analytics,
-  AnalyticsSettings,
-  NullAnalytics,
-  InitOptions,
-} from '../core/analytics'
+import { Analytics, NullAnalytics, InitOptions } from '../core/analytics'
 import { Context } from '../core/context'
 import { Plan } from '../core/events'
 import { Plugin } from '../core/plugin'
@@ -22,7 +17,6 @@ import {
 } from '../plugins/remote-loader'
 import type { RoutingRule } from '../plugins/routing-middleware'
 import { segmentio, SegmentioSettings } from '../plugins/segmentio'
-import { validation } from '../plugins/validation'
 import {
   AnalyticsBuffered,
   PreInitMethodCallBuffer,
@@ -31,23 +25,28 @@ import {
   flushSetAnonymousID,
   flushOn,
   PreInitMethodCall,
+  flushRegister,
 } from '../core/buffer'
 import { ClassicIntegrationSource } from '../plugins/ajs-destination/types'
 import { attachInspector } from '../core/inspector'
 import { Stats } from '../core/stats'
 import { setGlobalAnalyticsKey } from '../lib/global-analytics-helper'
 
-export interface LegacyIntegrationConfiguration {
+export interface RemoteIntegrationSettings {
   /* @deprecated - This does not indicate browser types anymore */
   type?: string
 
   versionSettings?: {
     version?: string
     override?: string
-    componentTypes?: Array<'browser' | 'android' | 'ios' | 'server'>
+    componentTypes?: ('browser' | 'android' | 'ios' | 'server')[]
   }
 
-  bundlingStatus?: string
+  /**
+   * We know if an integration is device mode if it has `bundlingStatus: 'bundled'` and the `browser` componentType in `versionSettings`.
+   * History: The term 'bundle' is left over from before action destinations, when a device mode destinations were 'bundled' in a custom bundle for every analytics.js source.
+   */
+  bundlingStatus?: 'bundled' | 'unbundled'
 
   /**
    * Consent settings for the integration
@@ -55,7 +54,7 @@ export interface LegacyIntegrationConfiguration {
   consentSettings?: {
     /**
      * Consent categories for the integration
-     * @example ["Analytics", "Advertising", "CAT001"]
+     * @example ["CAT001", "CAT002"]
      */
     categories: string[]
   }
@@ -68,9 +67,13 @@ export interface LegacyIntegrationConfiguration {
   [key: string]: any
 }
 
-export interface LegacySettings {
+/**
+ * The remote settings object for a source, typically fetched from the Segment CDN.
+ * Warning: this is an *unstable* object.
+ */
+export interface CDNSettings {
   integrations: {
-    [name: string]: LegacyIntegrationConfiguration
+    [creationName: string]: RemoteIntegrationSettings
   }
 
   middlewareSettings?: {
@@ -102,27 +105,58 @@ export interface LegacySettings {
      */
     hasUnmappedDestinations: boolean
   }
+  /**
+   * Settings for edge function. Used for signals.
+   */
+  edgeFunction?: // this is technically non-nullable according to ajs-renderer atm, but making it optional because it's strange API choice, and we might want to change it.
+  | {
+        /**
+         * The URL of the edge function (.js file).
+         * @example 'https://cdn.edgefn.segment.com/MY-WRITEKEY/foo.js',
+         */
+        downloadURL: string
+        /**
+         * The version of the edge function
+         * @example 1
+         */
+        version: number
+      }
+    | {}
+
+  /**
+   * Settings for auto instrumentation
+   */
+  autoInstrumentationSettings?: {
+    sampleRate: number
+  }
 }
 
-export interface AnalyticsBrowserSettings extends AnalyticsSettings {
+export interface AnalyticsBrowserSettings {
+  writeKey: string
   /**
    * The settings for the Segment Source.
    * If provided, `AnalyticsBrowser` will not fetch remote settings
    * for the source.
    */
-  cdnSettings?: LegacySettings & Record<string, unknown>
+  cdnSettings?: CDNSettings & Record<string, unknown>
   /**
    * If provided, will override the default Segment CDN (https://cdn.segment.com) for this application.
    */
   cdnURL?: string
+  /**
+   * Plugins or npm-installed action destinations
+   */
+  plugins?: (Plugin | PluginFactory)[]
+  /**
+   * npm-installed classic destinations
+   */
+  classicIntegrations?: ClassicIntegrationSource[]
 }
 
-export function loadLegacySettings(
+export function loadCDNSettings(
   writeKey: string,
-  cdnURL?: string
-): Promise<LegacySettings> {
-  const baseUrl = cdnURL ?? getCDN()
-
+  baseUrl: string
+): Promise<CDNSettings> {
   return fetch(`${baseUrl}/v1/projects/${writeKey}/settings`)
     .then((res) => {
       if (!res.ok) {
@@ -138,7 +172,7 @@ export function loadLegacySettings(
     })
 }
 
-function hasLegacyDestinations(settings: LegacySettings): boolean {
+function hasLegacyDestinations(settings: CDNSettings): boolean {
   return (
     getProcessEnv().NODE_ENV !== 'test' &&
     // just one integration means segmentio
@@ -146,7 +180,7 @@ function hasLegacyDestinations(settings: LegacySettings): boolean {
   )
 }
 
-function hasTsubMiddleware(settings: LegacySettings): boolean {
+function hasTsubMiddleware(settings: CDNSettings): boolean {
   return (
     getProcessEnv().NODE_ENV !== 'test' &&
     (settings.middlewareSettings?.routingRules?.length ?? 0) > 0
@@ -180,19 +214,19 @@ async function flushFinalBuffer(
   // analytics calls during async function calls.
   await flushAddSourceMiddleware(analytics, buffer)
   flushAnalyticsCallsInNewTask(analytics, buffer)
-  // Clear buffer, just in case analytics is loaded twice; we don't want to fire events off again.
-  buffer.clear()
 }
 
 async function registerPlugins(
   writeKey: string,
-  legacySettings: LegacySettings,
+  cdnSettings: CDNSettings,
   analytics: Analytics,
   options: InitOptions,
   pluginLikes: (Plugin | PluginFactory)[] = [],
-  legacyIntegrationSources: ClassicIntegrationSource[]
+  legacyIntegrationSources: ClassicIntegrationSource[],
+  preInitBuffer: PreInitMethodCallBuffer
 ): Promise<Context> {
-  const plugins = pluginLikes?.filter(
+  flushPreBuffer(analytics, preInitBuffer)
+  const pluginsFromSettings = pluginLikes?.filter(
     (pluginLike) => typeof pluginLike === 'object'
   ) as Plugin[]
 
@@ -202,24 +236,22 @@ async function registerPlugins(
       typeof pluginLike.pluginName === 'string'
   ) as PluginFactory[]
 
-  const tsubMiddleware = hasTsubMiddleware(legacySettings)
+  const tsubMiddleware = hasTsubMiddleware(cdnSettings)
     ? await import(
         /* webpackChunkName: "tsub-middleware" */ '../plugins/routing-middleware'
       ).then((mod) => {
-        return mod.tsubMiddleware(
-          legacySettings.middlewareSettings!.routingRules
-        )
+        return mod.tsubMiddleware(cdnSettings.middlewareSettings!.routingRules)
       })
     : undefined
 
   const legacyDestinations =
-    hasLegacyDestinations(legacySettings) || legacyIntegrationSources.length > 0
+    hasLegacyDestinations(cdnSettings) || legacyIntegrationSources.length > 0
       ? await import(
           /* webpackChunkName: "ajs-destination" */ '../plugins/ajs-destination'
         ).then((mod) => {
           return mod.ajsDestinations(
             writeKey,
-            legacySettings,
+            cdnSettings,
             analytics.integrations,
             options,
             tsubMiddleware,
@@ -228,7 +260,7 @@ async function registerPlugins(
         })
       : []
 
-  if (legacySettings.legacyVideoPluginsEnabled) {
+  if (cdnSettings.legacyVideoPluginsEnabled) {
     await import(
       /* webpackChunkName: "legacyVideos" */ '../plugins/legacy-video-plugins'
     ).then((mod) => {
@@ -240,13 +272,13 @@ async function registerPlugins(
     ? await import(
         /* webpackChunkName: "schemaFilter" */ '../plugins/schema-filter'
       ).then((mod) => {
-        return mod.schemaFilter(options.plan?.track, legacySettings)
+        return mod.schemaFilter(options.plan?.track, cdnSettings)
       })
     : undefined
 
-  const mergedSettings = mergedOptions(legacySettings, options)
+  const mergedSettings = mergedOptions(cdnSettings, options)
   const remotePlugins = await remoteLoader(
-    legacySettings,
+    cdnSettings,
     analytics.integrations,
     mergedSettings,
     options,
@@ -254,16 +286,10 @@ async function registerPlugins(
     pluginSources
   ).catch(() => [])
 
-  const toRegister = [
-    validation,
-    envEnrichment,
-    ...plugins,
-    ...legacyDestinations,
-    ...remotePlugins,
-  ]
+  const basePlugins = [envEnrichment, ...legacyDestinations, ...remotePlugins]
 
   if (schemaFilter) {
-    toRegister.push(schemaFilter)
+    basePlugins.push(schemaFilter)
   }
 
   const shouldIgnoreSegmentio =
@@ -272,19 +298,27 @@ async function registerPlugins(
     (options.integrations && options.integrations['Segment.io'] === false)
 
   if (!shouldIgnoreSegmentio) {
-    toRegister.push(
+    basePlugins.push(
       await segmentio(
         analytics,
         mergedSettings['Segment.io'] as SegmentioSettings,
-        legacySettings.integrations
+        cdnSettings.integrations
       )
     )
   }
 
-  const ctx = await analytics.register(...toRegister)
+  // order is important here, (for example, if there are multiple enrichment plugins, the last registered plugin will have access to the last context.)
+  const ctx = await analytics.register(
+    // register 'core' plugins and those via destinations
+    ...basePlugins,
+    // register user-defined plugins passed into AnalyticsBrowser.load({ plugins: [plugin1, plugin2] }) -- relevant to npm-only
+    ...pluginsFromSettings
+  )
+  // register user-defined plugins registered via analytics.register()
+  await flushRegister(analytics, preInitBuffer)
 
   if (
-    Object.entries(legacySettings.enabledMiddleware ?? {}).some(
+    Object.entries(cdnSettings.enabledMiddleware ?? {}).some(
       ([, enabled]) => enabled
     )
   ) {
@@ -293,7 +327,7 @@ async function registerPlugins(
     ).then(async ({ remoteMiddlewares }) => {
       const middleware = await remoteMiddlewares(
         ctx,
-        legacySettings,
+        cdnSettings,
         options.obfuscate
       )
       const promises = middleware.map((mdw) =>
@@ -323,34 +357,34 @@ async function loadAnalytics(
 
   if (options.initialPageview) {
     // capture the page context early, so it's always up-to-date
-    preInitBuffer.push(new PreInitMethodCall('page', []))
+    preInitBuffer.add(new PreInitMethodCall('page', []))
   }
 
-  let legacySettings =
-    settings.cdnSettings ??
-    (await loadLegacySettings(settings.writeKey, settings.cdnURL))
+  const cdnURL = settings.cdnURL ?? getCDN()
+  let cdnSettings =
+    settings.cdnSettings ?? (await loadCDNSettings(settings.writeKey, cdnURL))
 
   if (options.updateCDNSettings) {
-    legacySettings = options.updateCDNSettings(legacySettings)
+    cdnSettings = options.updateCDNSettings(cdnSettings)
   }
 
   // if options.disable is a function, we allow user to disable analytics based on CDN Settings
   if (typeof options.disable === 'function') {
-    const disabled = await options.disable(legacySettings)
+    const disabled = await options.disable(cdnSettings)
     if (disabled) {
       return [new NullAnalytics(), Context.system()]
     }
   }
 
   const retryQueue: boolean =
-    legacySettings.integrations['Segment.io']?.retryQueue ?? true
+    cdnSettings.integrations['Segment.io']?.retryQueue ?? true
 
   options = {
     retryQueue,
     ...options,
   }
 
-  const analytics = new Analytics(settings, options)
+  const analytics = new Analytics({ ...settings, cdnSettings, cdnURL }, options)
 
   attachInspector(analytics)
 
@@ -363,21 +397,19 @@ async function loadAnalytics(
     | undefined
 
   Stats.initRemoteMetrics({
-    ...legacySettings.metrics,
-    host: segmentLoadOptions?.apiHost ?? legacySettings.metrics?.host,
+    ...cdnSettings.metrics,
+    host: segmentLoadOptions?.apiHost ?? cdnSettings.metrics?.host,
     protocol: segmentLoadOptions?.protocol,
   })
 
-  // needs to be flushed before plugins are registered
-  flushPreBuffer(analytics, preInitBuffer)
-
   const ctx = await registerPlugins(
     settings.writeKey,
-    legacySettings,
+    cdnSettings,
     analytics,
     options,
     plugins,
-    classicIntegrations
+    classicIntegrations,
+    preInitBuffer
   )
 
   const search = window.location.search ?? ''

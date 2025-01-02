@@ -47,6 +47,10 @@ steps:
     key: qa
     agents:
       queue: v1
+    env:
+      SEGMENT_CODECOV_FLAGS: 'browser'
+      SEGMENT_CODECOV_ARGS: '--dir=./packages/browser/coverage'
+      COVERAGE: true
     commands:
       - npm config set "//registry.npmjs.org/:_authToken" $${NPM_TOKEN}
       - echo "--- Install dependencies"
@@ -82,6 +86,10 @@ steps:
           paths: ['.yarn/cache/']
 
   - label: '[Core] Lint + Test'
+    env:
+      SEGMENT_CODECOV_FLAGS: 'core'
+      SEGMENT_CODECOV_ARGS: '--dir=./packages/core/coverage'
+      COVERAGE: true
     agents:
       queue: v1
     commands:
@@ -127,6 +135,25 @@ steps:
       - yarn turbo run --filter='./packages/consent/*' lint
       - echo "+++ Run Tests"
       - yarn turbo run --filter='./packages/consent/*' test
+    plugins:
+      - ssh://git@github.com/segmentio/cache-buildkite-plugin#v2.0.0:
+          key: "v1.1-cache-dev-{{ checksum 'yarn.lock' }}"
+
+  - label: '[Signals] Lint + Test'
+    agents:
+      queue: v1
+    commands:
+      - npm config set "//registry.npmjs.org/:_authToken" $${NPM_TOKEN}
+      - echo "--- Install dependencies"
+      - HUSKY=0 yarn install --immutable
+      - echo "--- Build bundles"
+      - yarn turbo run --filter='./packages/signals/*' build
+      - echo "+++ Assert Generated Files Up-to-Date"
+      - yarn turbo run --filter='./packages/signals/*' assert-generated
+      - echo "+++ Run Lint"
+      - yarn turbo run --filter='./packages/signals/*' lint
+      - echo "+++ Run Tests"
+      - yarn turbo run --filter='./packages/signals/*' test
     plugins:
       - ssh://git@github.com/segmentio/cache-buildkite-plugin#v2.0.0:
           key: "v1.1-cache-dev-{{ checksum 'yarn.lock' }}"

@@ -1,5 +1,5 @@
-import type { LegacySettings } from '@segment/analytics-next'
-type RemotePlugin = NonNullable<LegacySettings['remotePlugins']>[0]
+import type { CDNSettings } from '@segment/analytics-next'
+type RemotePlugin = NonNullable<CDNSettings['remotePlugins']>[0]
 
 export type DestinationSettingsBuilderConfig = Partial<RemotePlugin> & {
   creationName: string
@@ -11,15 +11,15 @@ export type DestinationSettingsBuilderConfig = Partial<RemotePlugin> & {
 }
 
 export class CDNSettingsBuilder {
-  private settings: LegacySettings
+  private settings: CDNSettings
   constructor({
     writeKey,
     baseCDNSettings,
   }: {
     writeKey?: string
-    baseCDNSettings?: LegacySettings
+    baseCDNSettings?: Partial<CDNSettings>
   } = {}) {
-    const settings = baseCDNSettings || {
+    const settings: CDNSettings = {
       integrations: {
         'Segment.io': {
           apiKey: writeKey,
@@ -28,6 +28,7 @@ export class CDNSettingsBuilder {
           maybeBundledConfigIds: {},
           versionSettings: { version: '4.4.7', componentTypes: ['browser'] },
           apiHost: 'api.segment.io/v1',
+          ...baseCDNSettings?.integrations?.['Segment.io'],
         },
       },
       plan: {
@@ -40,6 +41,8 @@ export class CDNSettingsBuilder {
       metrics: { sampleRate: 0.1, host: 'api.segment.io/v1' },
       legacyVideoPluginsEnabled: false,
       remotePlugins: [],
+      edgeFunction: {},
+      ...baseCDNSettings,
     }
     this.settings = settings
   }

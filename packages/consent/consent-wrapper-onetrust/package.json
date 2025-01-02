@@ -1,6 +1,6 @@
 {
   "name": "@segment/analytics-consent-wrapper-onetrust",
-  "version": "0.4.0",
+  "version": "1.1.1",
   "keywords": [
     "segment",
     "analytics",
@@ -11,7 +11,8 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "sideEffects": [
-    "./dist/umd/analytics-onetrust.umd.js"
+    "./dist/umd/analytics-onetrust.umd.js",
+    "./dist/umd/analytics-onetrust.global.js"
   ],
   "jsdelivr": "./dist/umd/analytics-onetrust.umd.js",
   "unpkg": "./dist/umd/analytics-onetrust.umd.js",
@@ -26,6 +27,7 @@
   "scripts": {
     ".": "yarn run -T turbo run --filter=@segment/analytics-consent-wrapper-onetrust...",
     "test": "yarn jest",
+    "bundle-build-test": "yarn webpack && yarn test ./bundle-build-tests/*",
     "lint": "yarn concurrently 'yarn:eslint .' 'yarn:tsc --noEmit'",
     "build": "rm -rf dist && yarn concurrently 'yarn:build:*'",
     "build:esm": "yarn tsc -p tsconfig.build.json",
@@ -41,11 +43,11 @@
     "webpack": "yarn run -T webpack"
   },
   "dependencies": {
-    "@segment/analytics-consent-tools": "1.2.0",
+    "@segment/analytics-consent-tools": "2.0.1",
     "tslib": "^2.4.1"
   },
   "peerDependencies": {
-    "@segment/analytics-next": ">=1.53.1"
+    "@segment/analytics-next": ">=1.67.0"
   },
   "peerDependenciesMeta": {
     "@segment/analytics-next": {
@@ -61,6 +63,8 @@
   },
   "devDependencies": {
     "@internal/config-webpack": "workspace:^",
-    "@internal/test-helpers": "workspace:^"
+    "@internal/test-helpers": "workspace:^",
+    "@types/jsdom": "^16.2.14",
+    "jsdom": "^19.0.0"
   }
 }

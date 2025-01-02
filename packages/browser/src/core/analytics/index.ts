@@ -23,16 +23,12 @@ import {
   EventProperties,
   SegmentEvent,
 } from '../events'
-import type { Plugin } from '../plugin'
+import { isDestinationPluginWithAddMiddleware, Plugin } from '../plugin'
 import { EventQueue } from '../queue/event-queue'
 import { Group, ID, User, UserOptions } from '../user'
 import autoBind from '../../lib/bind-all'
 import { PersistedPriorityQueue } from '../../lib/priority-queue/persisted'
-import type { LegacyDestination } from '../../plugins/ajs-destination'
-import type {
-  LegacyIntegration,
-  ClassicIntegrationSource,
-} from '../../plugins/ajs-destination/types'
+import type { LegacyIntegration } from '../../plugins/ajs-destination/types'
 import type {
   DestinationMiddlewareFunction,
   MiddlewareFunction,
@@ -42,7 +38,7 @@ import { PriorityQueue } from '../../lib/priority-queue'
 import { getGlobal } from '../../lib/get-global'
 import { AnalyticsClassic, AnalyticsCore } from './interfaces'
 import { HighEntropyHint } from '../../lib/client-hints/interfaces'
-import type { LegacySettings } from '../../browser'
+import type { CDNSettings } from '../../browser'
 import {
   CookieOptions,
   MemoryStorage,
@@ -53,9 +49,12 @@ import {
   initializeStorages,
   isArrayOfStoreType,
 } from '../storage'
-import { PluginFactory } from '../../plugins/remote-loader'
 import { setGlobalAnalytics } from '../../lib/global-analytics-helper'
 import { popPageContext } from '../buffer'
+import {
+  isSegmentPlugin,
+  SegmentIOPluginMetadata,
+} from '../../plugins/segmentio'
 
 const deprecationWarning =
   'This is being deprecated and will be not be available in future releases of Analytics JS'
@@ -76,11 +75,45 @@ function createDefaultQueue(
   return new EventQueue(priorityQueue)
 }
 
+/**
+ * The public settings that are set on the analytics instance
+ */
+export class AnalyticsInstanceSettings {
+  readonly writeKey: string
+  /**
+   * This is an unstable API, it may change in the future without warning.
+   */
+  readonly cdnSettings: CDNSettings
+  readonly cdnURL?: string
+  get apiHost(): string | undefined {
+    return this._getSegmentPluginMetadata?.()?.apiHost
+  }
+  private _getSegmentPluginMetadata?: () => SegmentIOPluginMetadata | undefined
+
+  /**
+   * Auto-track specific timeout setting for legacy purposes.
+   */
+  timeout = 300
+
+  constructor(settings: AnalyticsSettings, queue: EventQueue) {
+    this._getSegmentPluginMetadata = () =>
+      queue.plugins.find(isSegmentPlugin)?.metadata
+    this.writeKey = settings.writeKey
+    this.cdnSettings = settings.cdnSettings ?? {
+      integrations: {},
+      edgeFunction: {},
+    }
+    this.cdnURL = settings.cdnURL
+  }
+}
+
+/**
+ * The settings that are used to configure the analytics instance
+ */
 export interface AnalyticsSettings {
   writeKey: string
-  timeout?: number
-  plugins?: (Plugin | PluginFactory)[]
-  classicIntegrations?: ClassicIntegrationSource[]
+  cdnSettings?: CDNSettings
+  cdnURL?: string
 }
 
 export interface InitOptions {
@@ -110,7 +143,7 @@ export interface InitOptions {
    * This callback allows you to update/mutate CDN Settings.
    * This is called directly after settings are fetched from the CDN.
    */
-  updateCDNSettings?: (settings: LegacySettings) => LegacySettings
+  updateCDNSettings?: (settings: CDNSettings) => CDNSettings
   /**
    * Disables or sets constraints on processing of query string parameters
    */
@@ -144,9 +177,7 @@ export interface InitOptions {
    * disable: (cdnSettings) => cdnSettings.foo === 'bar'
    * ```
    */
-  disable?:
-    | boolean
-    | ((cdnSettings: LegacySettings) => boolean | Promise<boolean>)
+  disable?: boolean | ((cdnSettings: CDNSettings) => boolean | Promise<boolean>)
 }
 
 /* analytics-classic stubs */
@@ -158,7 +189,7 @@ export class Analytics
   extends Emitter
   implements AnalyticsCore, AnalyticsClassic
 {
-  protected settings: AnalyticsSettings
+  settings: AnalyticsInstanceSettings
   private _user: User
   private _group: Group
   private eventFactory: EventFactory
@@ -180,8 +211,7 @@ export class Analytics
     super()
     const cookieOptions = options?.cookie
     const disablePersistance = options?.disableClientPersistence ?? false
-    this.settings = settings
-    this.settings.timeout = this.settings.timeout ?? 300
+
     this.queue =
       queue ??
       createDefaultQueue(
@@ -189,6 +219,7 @@ export class Analytics
         options?.retryQueue,
         disablePersistance
       )
+    this.settings = new AnalyticsInstanceSettings(settings, this.queue)
 
     const storageSetting = options?.storage
     this._universalStorage = this.createStore(
@@ -520,13 +551,17 @@ export class Analytics
     integrationName: string,
     ...middlewares: DestinationMiddlewareFunction[]
   ): Promise<Analytics> {
-    const legacyDestinations = this.queue.plugins.filter(
-      (xt) => xt.name.toLowerCase() === integrationName.toLowerCase()
-    ) as LegacyDestination[]
+    this.queue.plugins
+      .filter(isDestinationPluginWithAddMiddleware)
+      .forEach((p) => {
+        if (
+          integrationName === '*' ||
+          p.name.toLowerCase() === integrationName.toLowerCase()
+        ) {
+          p.addMiddleware(...middlewares)
+        }
+      })
 
-    legacyDestinations.forEach((destination) => {
-      destination.addMiddleware(...middlewares)
-    })
     return Promise.resolve(this)
   }
 
@@ -579,7 +614,7 @@ export class Analytics
 
   normalize(msg: SegmentEvent): SegmentEvent {
     console.warn(deprecationWarning)
-    return this.eventFactory.normalize(msg)
+    return this.eventFactory['normalize'](msg)
   }
 
   get failedInitializations(): string[] {
