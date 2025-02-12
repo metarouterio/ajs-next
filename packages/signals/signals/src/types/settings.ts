@@ -1,3 +1,4 @@
+import { SignalsMiddleware } from '../core/emitter'
 import { ProcessSignal } from './process-signal'
 
 export interface SignalsPluginSettingsConfig {
@@ -53,6 +54,30 @@ export interface SignalsPluginSettingsConfig {
   flushInterval?: number
 
   /**
+   * Add custom signals middleware
+   * @example
+   *```ts
+   * class MyMiddleware implements SignalsMiddleware {
+   *   process(signal: Signal) {
+   *     // drop the event if some conditions are met
+   *     if (
+   *        signal.type === 'network' &&
+   *        signal.data.action === 'request' &&
+   *       ... etc
+   *     ) {
+   *       return null;
+   *     } else {
+   *       return signal;
+   *   }
+   * }
+   * const myMiddleware = new MyMiddleware()
+   * ...
+   * middleware: [myMiddleware]
+   * ````
+   */
+  middleware?: SignalsMiddleware[] | undefined
+
+  /**
    * Allow network requests for URLs that match the specified regex.
    * Same domain signals will be automatically included, unless `networkSignalsAllowSameDomain` is `false`.
    * @example  new RegExp("api.foo.com|api.bar.com")  // match api.foo.com/bar and api.foo.com/baz and api.bar.com/baz
@@ -81,6 +106,43 @@ export interface SignalsPluginSettingsConfig {
    * @default 'indexDB'
    */
   signalStorageType?: 'session' | 'indexDB' | undefined
+
+  /**
+   * Custom selectors that map to components that should be observed for attribute changes (if the default list is not sufficient)
+   * @example [`[id="bar"]`, `.foo`]
+   */
+  mutationGenExtraSelectors?: string[]
+  /**
+   * @example
+   * // add a role to the roles
+   * (defaultRoles) => [...defaultRoles, 'grid']
+   * // remove a role from the roles
+   * (defaultRoles) => defaultRoles.filter(role => role !== 'grid')
+   */
+  mutationGenObservedRoles?: (defaultRoles: string[]) => string[]
+  /**
+   * @example
+   * // add a new tag to the tags
+   * (defaultTags) => [...defaultTags, 'video']
+   * // remove a tag from the tags
+   * (defaultTags) => defaultTags.filter(tag => tag.toLowerCase() !== 'video')
+   */
+  mutationGenObservedTags?: (defaultTags: string[]) => string[]
+  /**
+   * How often to poll the DOM for new elements to observe (ms)
+   * @default 400
+   */
+  mutationGenPollInterval?: number
+  /**
+   *
+   * Which attributes to observe for changes on the observed elements. This is used for MutationObserver.
+   * @example
+   * // add a new attribute to watch for changes
+   * (defaultAttributes) => [...defaultAttributes, 'aria-label']
+   * // remove an attribute from the list of attributes to watch for changes
+   * (defaultAttributes) => defaultAttributes.filter(attr => attr.toLowerCase() !== 'aria-selected')
+   */
+  mutationGenObservedAttributes?: (defaultAttributes: string[]) => string[]
 }
 
 export type RegexLike = RegExp | string

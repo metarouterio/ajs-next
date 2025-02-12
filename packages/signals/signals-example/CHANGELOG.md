@@ -4,6 +4,50 @@
 
 ### Patch Changes
 
+- Updated dependencies [[`e0ed6a5a`](https://github.com/segmentio/analytics-next/commit/e0ed6a5a072bcb859a2ae304e572e03284d262de)]:
+  - @segment/analytics-signals@1.10.1
+
+## null
+
+### Patch Changes
+
+- Updated dependencies [[`171080cc`](https://github.com/segmentio/analytics-next/commit/171080cc9ca198b9f89a9e9154c2a78ed8ef29ee), [`bf868573`](https://github.com/segmentio/analytics-next/commit/bf8685737466cb1193a54f99871ec7348b8616d8)]:
+  - @segment/analytics-signals@1.10.0
+
+## null
+
+### Patch Changes
+
+- Updated dependencies [[`9a8b0e03`](https://github.com/segmentio/analytics-next/commit/9a8b0e0322a4291a3ee3c5c06974a0af9ea5469f)]:
+  - @segment/analytics-signals@1.9.2
+
+## null
+
+### Patch Changes
+
+- Updated dependencies [[`8e0162b9`](https://github.com/segmentio/analytics-next/commit/8e0162b9553419448b7975337a53fa1c66e70d47), [`8e0162b9`](https://github.com/segmentio/analytics-next/commit/8e0162b9553419448b7975337a53fa1c66e70d47)]:
+  - @segment/analytics-next@1.77.0
+  - @segment/analytics-signals@1.9.1
+
+## null
+
+### Patch Changes
+
+- Updated dependencies [[`32582be8`](https://github.com/segmentio/analytics-next/commit/32582be828d112a31a92b16e80b15727c3a36613), [`9d1b042d`](https://github.com/segmentio/analytics-next/commit/9d1b042d0bb09996e5c8674b7b3e4dd3bf138e3d), [`9883151f`](https://github.com/segmentio/analytics-next/commit/9883151f85d555266e40e69e876f1dec8a632c5a)]:
+  - @segment/analytics-next@1.76.1
+  - @segment/analytics-signals@1.9.0
+
+## null
+
+### Patch Changes
+
+- Updated dependencies [[`00a736f3`](https://github.com/segmentio/analytics-next/commit/00a736f31326328e91c9cae0b244b9db9b0791fc)]:
+  - @segment/analytics-signals@1.9.0
+
+## null
+
+### Patch Changes
+
 - Updated dependencies [[`3410160c`](https://github.com/segmentio/analytics-next/commit/3410160c30024c292f252802cdb98b6b59fced0c), [`46e88198`](https://github.com/segmentio/analytics-next/commit/46e88198b2f9d3a835e02fa22317d784c6f71ebf), [`de6f86dc`](https://github.com/segmentio/analytics-next/commit/de6f86dc637dbc49f5bb55c1e44a36a2011c14b9), [`342868cb`](https://github.com/segmentio/analytics-next/commit/342868cb9db7da37d8851dadca4b1b1dc0ecd923)]:
   - @segment/analytics-signals@1.8.0
 

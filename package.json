@@ -20,6 +20,7 @@
     "build": "turbo run build --filter='./packages/**'",
     "watch": "turbo run watch --filter='./packages/**'",
     "dev": "yarn workspace @playground/next-playground run dev",
+    "prepush": "yarn lint && CI=true yarn test --colors --silent",
     "postinstall": "husky install",
     "changeset": "changeset",
     "update-versions-and-changelogs": "changeset version && yarn version-run-all && bash scripts/update-lockfile.sh",
@@ -61,7 +62,7 @@
     "prettier": "^2.6.2",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.8.0",
-    "turbo": "^1.10.14",
+    "turbo": "^2.3.4",
     "typescript": "^4.7.0",
     "webpack": "^5.76.0",
     "webpack-dev-server": "^4.15.1"

@@ -11,7 +11,7 @@ import { Analytics, InitOptions } from '../../core/analytics'
 import { LegacyDestination } from '../../plugins/ajs-destination'
 import { PersistedPriorityQueue } from '../../lib/priority-queue/persisted'
 // @ts-ignore loadCDNSettings mocked dependency is accused as unused
-import { AnalyticsBrowser, loadCDNSettings } from '..'
+import { AnalyticsBrowser, CDNSettings, loadCDNSettings } from '..'
 // @ts-ignore isOffline mocked dependency is accused as unused
 import { isOffline } from '../../core/connection'
 import * as SegmentPlugin from '../../plugins/segmentio'
@@ -29,6 +29,7 @@ import {
 import { getGlobalAnalytics } from '../../lib/global-analytics-helper'
 import { NullAnalytics } from '../../core/analytics'
 import { recordIntegrationMetric } from '../../core/stats/metric-helpers'
+import { waitForCondition } from '../../test-helpers/helpers'
 
 let fetchCalls: ReturnType<typeof parseFetchCall>[] = []
 
@@ -376,7 +377,7 @@ describe('Initialization', () => {
     it('does not fetch source settings if cdnSettings is set', async () => {
       await AnalyticsBrowser.load({
         writeKey,
-        cdnSettings: { integrations: {} },
+        cdnSettings: cdnSettingsMinimal,
       })
 
       expect(fetchCalls.length).toBe(0)
@@ -385,6 +386,38 @@ describe('Initialization', () => {
 
   describe('options.integrations permutations', () => {
     const settings = { writeKey }
+
+    it('proxies integration options', async () => {
+      const analytics = AnalyticsBrowser.load(settings)
+      analytics.track(
+        'foo',
+        {},
+        {
+          integrations: {
+            Warehouses: {
+              warehouseIds: ['3dasf42dd'],
+              all: true,
+            },
+          },
+        }
+      )
+      await waitForCondition(() => {
+        return fetchCalls.some((el) => el.url.toString().includes('/v1/t'))
+      })
+      const trackCall = fetchCalls.find((el) =>
+        el.url.toString().includes('/v1/t')
+      )
+      expect(trackCall?.body.integrations).toMatchInlineSnapshot(`
+        {
+          "Warehouses": {
+            "all": true,
+            "warehouseIds": [
+              "3dasf42dd",
+            ],
+          },
+        }
+      `)
+    })
 
     it('does not load Segment.io if integrations.All is false and Segment.io is not listed', async () => {
       const options: { integrations: { [key: string]: boolean } } = {
@@ -650,6 +683,7 @@ describe('Dispatch', () => {
 
     expect(metrics.map((m) => m.metric)).toMatchInlineSnapshot(`
       [
+        "analytics_js.invoke",
         "message_dispatched",
         "plugin_time",
         "plugin_time",
@@ -665,8 +699,10 @@ describe('Dispatch', () => {
       {
         writeKey,
         cdnSettings: {
+          ...cdnSettingsMinimal,
           integrations: {
             'Segment.io': {
+              ...cdnSettingsMinimal.integrations['Segment.io'],
               apiHost: 'cdnSettings.api.io',
             },
           },
@@ -694,7 +730,9 @@ describe('Dispatch', () => {
     })
 
     await sleep(10)
-    expect(fetchCalls[1].url).toBe('http://new.api.io/m')
+    expect(fetchCalls.some((call) => call.url === 'http://new.api.io/m')).toBe(
+      true
+    )
   })
 })
 
@@ -786,28 +824,31 @@ describe('setAnonymousId', () => {
 })
 
 describe('addSourceMiddleware', () => {
-  it('supports registering source middlewares', async () => {
-    const [analytics] = await AnalyticsBrowser.load({
-      writeKey,
-    })
-
-    await analytics
-      .addSourceMiddleware(({ next, payload }) => {
-        payload.obj.context = {
-          hello: 'from the other side',
-        }
-        next(payload)
-      })
-      .catch((err) => {
-        throw err
+  it.each(['track', 'screen'] as const)(
+    'supports registering source middlewares for %s',
+    async (type) => {
+      const [analytics] = await AnalyticsBrowser.load({
+        writeKey,
       })
 
-    const ctx = await analytics.track('Hello!')
+      await analytics
+        .addSourceMiddleware(({ next, payload }) => {
+          payload.obj.context = {
+            hello: 'from the other side',
+          }
+          next(payload)
+        })
+        .catch((err) => {
+          throw err
+        })
 
-    expect(ctx.event.context).toMatchObject({
-      hello: 'from the other side',
-    })
-  })
+      const ctx = await analytics[type]('Hello!')
+
+      expect(ctx.event.context).toMatchObject({
+        hello: 'from the other side',
+      })
+    }
+  )
 })
 
 describe('addDestinationMiddleware', () => {
@@ -1328,6 +1369,7 @@ describe('Segment.io overrides', () => {
         integrations: {
           'Segment.io': {
             apiHost: 'https://my.endpoint.com',
+            // @ts-ignore
             anotherSettings: '👻',
           },
         },
@@ -1523,13 +1565,47 @@ describe('Options', () => {
       const disableSpy = jest.fn().mockReturnValue(true)
       const [analytics] = await AnalyticsBrowser.load(
         {
-          cdnSettings: { integrations: {}, foo: 123 },
+          cdnSettings: cdnSettingsMinimal,
           writeKey,
         },
         { disable: disableSpy }
       )
       expect(analytics).toBeInstanceOf(NullAnalytics)
-      expect(disableSpy).toBeCalledWith({ integrations: {}, foo: 123 })
+      expect(disableSpy).toHaveBeenCalledWith(cdnSettingsMinimal)
+    })
+  })
+})
+
+describe('setting headers', () => {
+  it('allows setting headers', async () => {
+    const [ajs] = await AnalyticsBrowser.load(
+      {
+        writeKey,
+      },
+      {
+        integrations: {
+          'Segment.io': {
+            deliveryStrategy: {
+              config: {
+                headers: {
+                  'X-Test': 'foo',
+                },
+              },
+            },
+          },
+        },
+      }
+    )
+
+    await ajs.track('sup')
+
+    await sleep(10)
+    const [call] = fetchCalls.filter((el) =>
+      el.url.toString().includes('api.segment.io')
+    )
+    expect(call.headers).toEqual({
+      'Content-Type': 'text/plain',
+      'X-Test': 'foo',
     })
   })
 })

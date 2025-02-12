@@ -1,6 +1,6 @@
 {
   "name": "@segment/analytics-signals",
-  "version": "1.8.0",
+  "version": "1.10.1",
   "main": "./dist/cjs/index.js",
   "repository": {
     "directory": "packages/signals/signals",
@@ -32,7 +32,7 @@
     "build:bundle": "NODE_ENV=production yarn run webpack",
     "workerbox": "node scripts/build-workerbox.js",
     "assert-generated": "sh scripts/assert-workerbox-built.sh",
-    "watch": "yarn concurrently 'yarn build:bundle --watch' 'yarn build:esm --watch'",
+    "watch": "rm -rf dist && yarn concurrently 'yarn build:bundle --watch' 'yarn build:esm --watch'",
     "version": "sh scripts/version.sh",
     "watch:test": "yarn test --watch",
     "tsc": "yarn run -T tsc",
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@segment/analytics-generic-utils": "1.2.0",
-    "@segment/analytics-signals-runtime": "1.1.1",
+    "@segment/analytics-signals-runtime": "1.2.0",
     "idb": "^8.0.0",
     "tslib": "^2.4.1"
   },

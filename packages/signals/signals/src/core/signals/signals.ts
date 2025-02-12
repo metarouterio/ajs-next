@@ -1,6 +1,5 @@
-import { SignalsIngestClient } from '../client'
 import { getSignalBuffer, SignalBuffer } from '../buffer'
-import { SignalEmitter } from '../emitter'
+import { SignalEmitter, SignalsMiddleware } from '../emitter'
 import { domGenerators } from '../signal-generators/dom-gen'
 import { NetworkGenerator } from '../signal-generators/network-gen'
 import {
@@ -11,11 +10,12 @@ import { Signal } from '@segment/analytics-signals-runtime'
 import { AnyAnalytics } from '../../types'
 import { registerGenerator } from '../signal-generators/register'
 import { AnalyticsService } from '../analytics-service'
-import { SignalEventProcessor } from '../processor/processor'
-import { Sandbox, SandboxSettings } from '../processor/sandbox'
 import { SignalGlobalSettings, SignalsSettingsConfig } from './settings'
 import { logger } from '../../lib/logger'
 import { LogLevelOptions } from '../debug-mode'
+import { SignalsIngestSubscriber } from '../middleware/signals-ingest'
+import { SignalsEventProcessorSubscriber } from '../middleware/event-processor'
+import { NetworkSignalsFilterMiddleware } from '../middleware/network-signals-filter/network-signals-filter'
 
 interface ISignals {
   start(analytics: AnyAnalytics): Promise<void>
@@ -32,64 +32,33 @@ export type SignalsPublicEmitterContract = {
 
 export class Signals implements ISignals {
   private buffer: SignalBuffer
-  private preStartBuffer: Signal[] = []
   public signalEmitter: SignalEmitter
   private cleanup: VoidFunction[] = []
-  private signalsClient: SignalsIngestClient
   private globalSettings: SignalGlobalSettings
   constructor(settingsConfig: SignalsSettingsConfig = {}) {
     this.globalSettings = new SignalGlobalSettings(settingsConfig)
-    this.signalEmitter = new SignalEmitter()
-    this.signalsClient = new SignalsIngestClient(
-      this.globalSettings.ingestClient
-    )
-
     this.buffer = getSignalBuffer(this.globalSettings.signalBuffer)
+    this.signalEmitter = this.getSignalEmitter(settingsConfig.middleware)
 
-    this.signalEmitter.subscribe((signal) => {
-      void this.signalsClient.send(signal)
-      void this.buffer.add(signal)
-    })
-
-    this.signalEmitter.subscribe(this.addToPreStartBuffer)
-
-    void this.registerGenerator([
-      ...domGenerators,
-      new NetworkGenerator(this.globalSettings.network),
-    ])
-  }
-
-  private addToPreStartBuffer = (signal: Signal) => {
-    this.preStartBuffer.push(signal)
-  }
-
-  /**
-   * Flush/process any signals that were emitted before the start method was called.
-   */
-  private flushPreStartBuffer = (processor: SignalEventProcessor) => {
-    logger.debug(
-      `Flushing ${this.preStartBuffer.length} events in pre-start buffer`,
-      this.preStartBuffer
-    )
-    this.signalEmitter.unsubscribe(this.addToPreStartBuffer)
-    this.preStartBuffer.forEach(async (signal) => {
-      void processor.process(signal, await this.buffer.getAll())
-    })
-    this.preStartBuffer = []
+    // We register the generators (along with the signal emitter) so they start collecting signals before the plugin is started.
+    // Otherwise, we would wait until analytics is loaded, which would skip things like page network URL changes.
+    void this.registerGenerator([...domGenerators, new NetworkGenerator()])
   }
 
   /**
    * Does the following:
    * - Sends any queued signals to the server.
-   * - Augments the analytics client to transform events -> signals
-   * - Registers custom signal generators.
+   * - Registers additional custom signal generators.
    */
   async start(analytics: AnyAnalytics): Promise<void> {
     const analyticsService = new AnalyticsService(analytics)
+
     analyticsService.instance.on('reset', () => {
       this.clearStorage()
     })
 
+    // These settings are important to middleware configuration (e.g, they drop events)
+    // The middleware doesn't run until the signalEmitter is initialized -- so we need to set these settings before starting the emitter
     this.globalSettings.update({
       edgeFnDownloadURL: analyticsService.edgeFnSettings?.downloadURL,
       disallowListURLs: [
@@ -101,27 +70,15 @@ export class Signals implements ISignals {
           .autoInstrumentationSettings?.sampleRate ?? 0,
     })
 
-    const sandbox = new Sandbox(
-      new SandboxSettings(this.globalSettings.sandbox)
-    )
-
-    const processor = new SignalEventProcessor(
-      analyticsService.instance,
-      sandbox
-    )
-
-    void this.flushPreStartBuffer(processor)
-
-    this.signalEmitter.subscribe(async (signal) => {
-      void processor.process(signal, await this.buffer.getAll())
-    })
-
     await this.registerGenerator([
       analyticsService.createSegmentInstrumentationEventGenerator(),
     ])
 
-    await this.signalsClient.init({
-      writeKey: analyticsService.instance.settings.writeKey,
+    // load emitter and flush any queued signals to all subscribers. Register middleware
+    void this.signalEmitter.start({
+      unstableGlobalSettings: this.globalSettings,
+      analyticsInstance: analyticsService.instance,
+      buffer: this.buffer,
     })
   }
 
@@ -147,6 +104,33 @@ export class Signals implements ISignals {
   async registerGenerator(
     generators: (SignalGeneratorClass | SignalGenerator)[]
   ): Promise<void> {
-    this.cleanup.push(await registerGenerator(this.signalEmitter, generators))
+    if (!this.signalEmitter) {
+      throw new Error('SignalEmitter not initialized')
+    }
+    if (!this.globalSettings) {
+      throw new Error('GlobalSettings not initialized')
+    }
+    this.cleanup.push(
+      await registerGenerator(
+        this.signalEmitter,
+        generators,
+        this.globalSettings
+      )
+    )
+  }
+
+  private getSignalEmitter(middleware?: SignalsMiddleware[]): SignalEmitter {
+    // we initialize the emitter here so that registerGenerator can be called before start
+    return new SignalEmitter()
+      .addMiddleware(
+        new NetworkSignalsFilterMiddleware(),
+        ...(middleware || [])
+      )
+      .subscribe(
+        (signal) => logger.logSignal(signal),
+        (signal) => this.buffer.add(signal),
+        new SignalsIngestSubscriber(),
+        new SignalsEventProcessorSubscriber()
+      )
   }
 }

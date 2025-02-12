@@ -1,5 +1,65 @@
 # @segment/analytics-signals
 
+## 1.10.1
+
+### Patch Changes
+
+- [#1226](https://github.com/segmentio/analytics-next/pull/1226) [`e0ed6a5a`](https://github.com/segmentio/analytics-next/commit/e0ed6a5a072bcb859a2ae304e572e03284d262de) Thanks [@silesky](https://github.com/silesky)! - Testing CI
+
+## 1.10.0
+
+### Minor Changes
+
+- [#1220](https://github.com/segmentio/analytics-next/pull/1220) [`bf868573`](https://github.com/segmentio/analytics-next/commit/bf8685737466cb1193a54f99871ec7348b8616d8) Thanks [@silesky](https://github.com/silesky)! - Allow registration of middleware to allow for dropping and modification of signals
+
+  ```ts
+  class MyMiddleware implements SignalsMiddleware {
+    process(signal: Signal) {
+      if (
+        signal.type === 'network' &&
+        signal.data.action === 'request' &&
+        ...
+      ) {
+        // drop or modify signal
+        return null
+      } else {
+        return signal
+      }
+    }
+  }
+  const signalsPlugin = new SignalsPlugin({
+    middleware: [new MyMiddleware()]
+  })
+  ```
+
+### Patch Changes
+
+- [#1224](https://github.com/segmentio/analytics-next/pull/1224) [`171080cc`](https://github.com/segmentio/analytics-next/commit/171080cc9ca198b9f89a9e9154c2a78ed8ef29ee) Thanks [@silesky](https://github.com/silesky)! - Refactor to use SignalEmitter middleware + subscriber interface internally
+
+## 1.9.2
+
+### Patch Changes
+
+- [#1215](https://github.com/segmentio/analytics-next/pull/1215) [`9a8b0e03`](https://github.com/segmentio/analytics-next/commit/9a8b0e0322a4291a3ee3c5c06974a0af9ea5469f) Thanks [@silesky](https://github.com/silesky)! - Fix bug where in vanilla React environments, the onChange events would error due to circular references.
+
+## 1.9.1
+
+### Patch Changes
+
+- [#1204](https://github.com/segmentio/analytics-next/pull/1204) [`8e0162b9`](https://github.com/segmentio/analytics-next/commit/8e0162b9553419448b7975337a53fa1c66e70d47) Thanks [@silesky](https://github.com/silesky)! - Update types
+
+## 1.9.0
+
+### Minor Changes
+
+- [#1202](https://github.com/segmentio/analytics-next/pull/1202) [`00a736f3`](https://github.com/segmentio/analytics-next/commit/00a736f31326328e91c9cae0b244b9db9b0791fc) Thanks [@silesky](https://github.com/silesky)! - - Add support for interaction signals for custom components and elements with contenteditable property
+  - Allow custom disallow list to override network signals, even if same domain.
+
+### Patch Changes
+
+- Updated dependencies [[`00a736f3`](https://github.com/segmentio/analytics-next/commit/00a736f31326328e91c9cae0b244b9db9b0791fc)]:
+  - @segment/analytics-signals-runtime@1.2.0
+
 ## 1.8.0
 
 ### Minor Changes

@@ -18,14 +18,12 @@ import { Emitter } from '@segment/analytics-generic-utils'
 import {
   Callback,
   EventFactory,
-  Integrations,
-  Plan,
   EventProperties,
   SegmentEvent,
 } from '../events'
 import { isDestinationPluginWithAddMiddleware, Plugin } from '../plugin'
 import { EventQueue } from '../queue/event-queue'
-import { Group, ID, User, UserOptions } from '../user'
+import { Group, ID, User } from '../user'
 import autoBind from '../../lib/bind-all'
 import { PersistedPriorityQueue } from '../../lib/priority-queue/persisted'
 import type { LegacyIntegration } from '../../plugins/ajs-destination/types'
@@ -37,13 +35,11 @@ import { version } from '../../generated/version'
 import { PriorityQueue } from '../../lib/priority-queue'
 import { getGlobal } from '../../lib/get-global'
 import { AnalyticsClassic, AnalyticsCore } from './interfaces'
-import { HighEntropyHint } from '../../lib/client-hints/interfaces'
 import type { CDNSettings } from '../../browser'
 import {
   CookieOptions,
   MemoryStorage,
   UniversalStorage,
-  StorageSettings,
   StoreType,
   applyCookieOptions,
   initializeStorages,
@@ -55,6 +51,13 @@ import {
   isSegmentPlugin,
   SegmentIOPluginMetadata,
 } from '../../plugins/segmentio'
+import {
+  AnalyticsSettings,
+  IntegrationsInitOptions,
+  InitOptions,
+} from '../../browser/settings'
+
+export type { InitOptions, AnalyticsSettings }
 
 const deprecationWarning =
   'This is being deprecated and will be not be available in future releases of Analytics JS'
@@ -99,85 +102,19 @@ export class AnalyticsInstanceSettings {
     this._getSegmentPluginMetadata = () =>
       queue.plugins.find(isSegmentPlugin)?.metadata
     this.writeKey = settings.writeKey
-    this.cdnSettings = settings.cdnSettings ?? {
-      integrations: {},
-      edgeFunction: {},
+
+    // this is basically just to satisfy typescript / so we don't need to change the function sig of every test.
+    // when loadAnalytics is called, cdnSettings will always be available.
+    const emptyCDNSettings: CDNSettings = {
+      integrations: {
+        'Segment.io': {
+          apiKey: '',
+        },
+      },
     }
+    this.cdnSettings = settings.cdnSettings ?? emptyCDNSettings
     this.cdnURL = settings.cdnURL
   }
-}
-
-/**
- * The settings that are used to configure the analytics instance
- */
-export interface AnalyticsSettings {
-  writeKey: string
-  cdnSettings?: CDNSettings
-  cdnURL?: string
-}
-
-export interface InitOptions {
-  /**
-   * Disables storing any data on the client-side via cookies or localstorage.
-   * Defaults to `false`.
-   *
-   */
-  disableClientPersistence?: boolean
-  /**
-   * Disables automatically converting ISO string event properties into Dates.
-   * ISO string to Date conversions occur right before sending events to a classic device mode integration,
-   * after any destination middleware have been ran.
-   * Defaults to `false`.
-   */
-  disableAutoISOConversion?: boolean
-  initialPageview?: boolean
-  cookie?: CookieOptions
-  storage?: StorageSettings
-  user?: UserOptions
-  group?: UserOptions
-  integrations?: Integrations
-  plan?: Plan
-  retryQueue?: boolean
-  obfuscate?: boolean
-  /**
-   * This callback allows you to update/mutate CDN Settings.
-   * This is called directly after settings are fetched from the CDN.
-   */
-  updateCDNSettings?: (settings: CDNSettings) => CDNSettings
-  /**
-   * Disables or sets constraints on processing of query string parameters
-   */
-  useQueryString?:
-    | boolean
-    | {
-        aid?: RegExp
-        uid?: RegExp
-      }
-  /**
-   * Array of high entropy Client Hints to request. These may be rejected by the user agent - only required hints should be requested.
-   */
-  highEntropyValuesClientHints?: HighEntropyHint[]
-  /**
-   * When using the snippet, this is the key that points to the global analytics instance (e.g. window.analytics).
-   * default: analytics
-   */
-  globalAnalyticsKey?: string
-
-  /**
-   * Disable sending any data to Segment's servers. All emitted events and API calls (including .ready()), will be no-ops, and no cookies or localstorage will be used.
-   *
-   * @example
-   * ### Basic (Will not not fetch any CDN settings)
-   * ```ts
-   * disable: process.env.NODE_ENV === 'test'
-   * ```
-   *
-   * ### Advanced (Fetches CDN Settings. Do not use this unless you require CDN settings for some reason)
-   * ```ts
-   * disable: (cdnSettings) => cdnSettings.foo === 'bar'
-   * ```
-   */
-  disable?: boolean | ((cdnSettings: CDNSettings) => boolean | Promise<boolean>)
 }
 
 /* analytics-classic stubs */
@@ -197,7 +134,7 @@ export class Analytics
   private _universalStorage: UniversalStorage
 
   initialized = false
-  integrations: Integrations
+  integrations: IntegrationsInitOptions
   options: InitOptions
   queue: EventQueue
 
@@ -516,6 +453,7 @@ export class Analytics
     callback?: Callback
   ): Promise<DispatchedEvent> {
     const ctx = new Context(event)
+    ctx.stats.increment('analytics_js.invoke', 1, [event.type])
     if (isOffline() && !this.options.retryQueue) {
       return ctx
     }

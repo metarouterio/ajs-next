@@ -16,6 +16,12 @@ export class BasePage {
   public edgeFnDownloadURL = 'https://cdn.edgefn.segment.com/MY-WRITEKEY/foo.js'
   public edgeFn!: string
   public network!: PageNetworkUtils
+  public defaultSignalsPluginTestSettings: Partial<SignalsPluginSettingsConfig> =
+    {
+      disableSignalsRedaction: true,
+      enableSignalsIngestion: true,
+      flushInterval: 500,
+    }
 
   constructor(path: string) {
     this.url = 'http://localhost:5432/src/tests' + path
@@ -41,7 +47,12 @@ export class BasePage {
     page: Page,
     edgeFn: string,
     signalSettings: Partial<SignalsPluginSettingsConfig> = {},
-    options: { updateURL?: (url: string) => string; sampleRate?: number } = {}
+    options: {
+      updateURL?: (url: string) => string
+      sampleRate?: number
+      middleware?: string
+      skipSignalsPluginInit?: boolean
+    } = {}
   ) {
     logConsole(page)
     this.page = page
@@ -50,10 +61,12 @@ export class BasePage {
     await this.setupMockedRoutes(options.sampleRate)
     const url = options.updateURL ? options.updateURL(this.url) : this.url
     await this.page.goto(url, { waitUntil: 'domcontentloaded' })
-    void this.invokeAnalyticsLoad({
-      flushInterval: 500,
-      ...signalSettings,
-    })
+    if (!options.skipSignalsPluginInit) {
+      void this.invokeAnalyticsLoad({
+        flushInterval: 500,
+        ...signalSettings,
+      })
+    }
     return this
   }
 
@@ -76,18 +89,19 @@ export class BasePage {
     signalSettings: Partial<SignalsPluginSettingsConfig> = {}
   ) {
     await this.page.evaluate(
-      ({ signalSettings }) => {
-        window.signalsPlugin = new window.SignalsPlugin({
-          disableSignalsRedaction: true,
-          enableSignalsIngestion: true,
-          ...signalSettings,
-        })
+      ({ settings }) => {
+        window.signalsPlugin = new window.SignalsPlugin(settings)
         window.analytics.load({
           writeKey: '<SOME_WRITE_KEY>',
           plugins: [window.signalsPlugin],
         })
       },
-      { signalSettings }
+      {
+        settings: {
+          ...this.defaultSignalsPluginTestSettings,
+          ...signalSettings,
+        },
+      }
     )
     return this
   }
@@ -251,10 +265,9 @@ export class BasePage {
   }
 
   waitForEdgeFunctionResponse(timeout = 30000) {
-    return this.page.waitForResponse(
-      `https://cdn.edgefn.segment.com/MY-WRITEKEY/**`,
-      { timeout }
-    )
+    return this.page.waitForResponse(this.edgeFnDownloadURL, {
+      timeout,
+    })
   }
 
   async waitForCDNSettingsResponse(timeout = 30000) {
@@ -263,6 +276,4 @@ export class BasePage {
       { timeout }
     )
   }
-
-  // Additional mock methods can be added here
 }

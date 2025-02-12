@@ -1,14 +1,16 @@
 import { parseDebugModeQueryString } from '../debug-mode'
 import { logger } from '../../lib/logger'
 import { SignalBufferSettingsConfig, SignalPersistentStorage } from '../buffer'
-import { SignalsIngestSettingsConfig } from '../client'
+import { SignalsIngestSettingsConfig } from '../middleware/signals-ingest/signals-ingest-client'
 import { SandboxSettingsConfig } from '../processor/sandbox'
-import { NetworkSettingsConfig } from '../signal-generators/network-gen'
 import { SignalsPluginSettingsConfig } from '../../types'
 import { WebStorage } from '../../lib/storage/web-storage'
+import { MutationGeneratorSettings } from '../signal-generators/dom-gen/change-gen'
+import { NetworkSettingsConfig } from '../middleware/network-signals-filter/network-signals-filter'
 
 export type SignalsSettingsConfig = Pick<
   SignalsPluginSettingsConfig,
+  | 'middleware'
   | 'maxBufferSize'
   | 'apiHost'
   | 'functionHost'
@@ -20,6 +22,11 @@ export type SignalsSettingsConfig = Pick<
   | 'networkSignalsDisallowList'
   | 'networkSignalsAllowSameDomain'
   | 'signalStorageType'
+  | 'mutationGenExtraSelectors'
+  | 'mutationGenObservedRoles'
+  | 'mutationGenObservedTags'
+  | 'mutationGenPollInterval'
+  | 'mutationGenObservedAttributes'
 > & {
   signalStorage?: SignalPersistentStorage
   processSignal?: string
@@ -36,7 +43,7 @@ export class SignalGlobalSettings {
   ingestClient: SignalsIngestSettingsConfig
   network: NetworkSettingsConfig
   signalsDebug: SignalsDebugSettings
-
+  mutationGenerator: MutationGeneratorSettings
   private sampleSuccess = false
 
   constructor(settings: SignalsSettingsConfig) {
@@ -45,6 +52,14 @@ export class SignalGlobalSettings {
         'maxBufferSize and signalStorage cannot be defined at the same time'
       )
     }
+
+    this.mutationGenerator = new MutationGeneratorSettings({
+      extraSelectors: settings.mutationGenExtraSelectors,
+      observedRoles: settings.mutationGenObservedRoles,
+      observedTags: settings.mutationGenObservedTags,
+      pollIntervalMs: settings.mutationGenPollInterval,
+      observedAttributes: settings.mutationGenObservedAttributes,
+    })
 
     this.signalsDebug = new SignalsDebugSettings(
       settings.disableSignalsRedaction,
